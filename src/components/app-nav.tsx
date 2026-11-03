@@ -39,7 +39,13 @@ const subscribeHydration = () => () => {};
 const clientSnapshot = () => true;
 const serverSnapshot = () => false;
 
-export function AppNav({ displayName }: { displayName: string }) {
+export function AppNav({
+  displayName,
+  className = "",
+}: {
+  displayName: string;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() ?? "";
   const isActive = (href: string) =>
@@ -64,7 +70,7 @@ export function AppNav({ displayName }: { displayName: string }) {
 
   return (
     <header
-      className="sticky top-0 z-40 border-b border-border/70 bg-[color-mix(in_oklab,var(--card)_85%,transparent)] backdrop-blur-md"
+      className={`sticky top-0 z-40 ${className} border-b border-border/70 bg-[color-mix(in_oklab,var(--card)_85%,transparent)] backdrop-blur-md`}
       onKeyDown={(event) => {
         if (event.key === "Escape" && open) {
           setOpen(false);

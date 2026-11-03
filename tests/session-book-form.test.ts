@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as store from "@/lib/demo/store";
 import SessionPage from "@/app/sessions/[id]/page";
 vi.mock("@/components/app-nav", () => ({ AppNav: () => null }));
+vi.mock("@/components/site-nav", () => ({ SiteNav: () => null }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/lib/session-mail", () => ({

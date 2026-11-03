@@ -12,7 +12,7 @@ import {
   saveScheduleAction,
   swapSessionsAction,
 } from "@/app/actions";
-import { AppNav } from "@/components/app-nav";
+import { SiteNav } from "@/components/site-nav";
 import { ToastForm } from "@/components/toast-form";
 import {
   AddRandomBooksForm,
@@ -86,9 +86,9 @@ export default async function SchedulePage({
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <AppNav displayName={member.displayName} />
+      <SiteNav displayName={member.displayName} />
       <main className="mx-auto w-full max-w-5xl px-4 py-8">
-        <BackLink />
+        <BackLink hiddenWithTabs />
         <section className="animate-rise">
           <h1 className="font-display text-3xl text-primary">Reading schedule</h1>
           <p className="mt-1 text-muted-foreground">

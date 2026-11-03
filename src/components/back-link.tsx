@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { NAV_STYLE } from "@/lib/nav-config";
 
 export function BackLink({
   href = "/",
   label = "Back to tonight",
   compact = false,
+  hiddenWithTabs = false,
 }: {
   href?: string;
   label?: string;
   compact?: boolean;
+  /** Top-level tab pages don't need a back link while the tab bar is showing. */
+  hiddenWithTabs?: boolean;
 }) {
+  if (hiddenWithTabs && NAV_STYLE === "tabs") return null;
   return (
     <Link
       href={href}
