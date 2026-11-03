@@ -189,7 +189,26 @@ export function BookModal({ book }: { book: Book }) {
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
+      if (event.key === "Escape") return close();
+      if (event.key !== "Tab") return;
+      // Keep focus inside the dialog.
+      const focusable = [
+        ...(cardRef.current?.querySelectorAll<HTMLElement>(
+          "a[href], button:not([disabled])",
+        ) ?? []),
+      ];
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      const inside = active instanceof Node && cardRef.current?.contains(active);
+      if (event.shiftKey && (active === first || !inside)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !inside)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     const { overflow } = document.body.style;

@@ -111,9 +111,17 @@ export default async function HomePage() {
               <p className="mt-3 text-muted-foreground">
                 Check the family schedule or ask an owner to add you to the rotation.
               </p>
-              <Link href="/schedule" className={cn(buttonVariants(), "mt-6")}>
-                Review schedule
-              </Link>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/schedule" className={buttonVariants()}>
+                  Review schedule
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className={buttonVariants({ variant: "outline" })}
+                >
+                  View reading stats
+                </Link>
+              </div>
             </>
           )}
         </section>

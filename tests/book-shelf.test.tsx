@@ -88,3 +88,14 @@ it("shows an empty-shelf message", () => {
   render(createElement(BookShelf, { books: [] }));
   expect(screen.getByText(/Your shelf is empty/)).toBeTruthy();
 });
+
+it("clears list selections when the filter changes so hidden books are never removed", () => {
+  render(createElement(BookShelf, { books }));
+  fireEvent.click(screen.getByRole("button", { name: "List" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /Select Owl Babies/ }));
+  expect(screen.getByRole("button", { name: /Remove selected \(1\)/ })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Search your shelf"), {
+    target: { value: "julia" },
+  });
+  expect(screen.queryByRole("button", { name: /Remove selected/ })).toBeNull();
+});

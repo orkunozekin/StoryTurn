@@ -155,7 +155,11 @@ export function BookShelf({ books }: { books: Book[] }) {
           ))}
         </ul>
       ) : (
-        <LibraryCollection books={books.filter(matches)} />
+        /* Remount on filter change so selections never include books that are hidden. */
+        <LibraryCollection
+          key={`${query.trim()}|${format}`}
+          books={books.filter(matches)}
+        />
       )}
     </div>
   );
