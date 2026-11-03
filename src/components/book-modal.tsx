@@ -148,7 +148,11 @@ export function BookModal({ book }: { book: Book }) {
       `[data-book-id="${CSS.escape(book.id)}"]`,
     );
     const finish = () => {
-      if (spine) spine.style.visibility = "";
+      if (spine) {
+        spine.style.visibility = "";
+        // Return keyboard focus to the book that opened the modal.
+        spine.focus({ preventScroll: true });
+      }
       router.back();
     };
     if (!card || !ghost || !scrim || prefersReducedMotion()) return finish();

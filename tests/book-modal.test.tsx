@@ -45,3 +45,15 @@ it("shows a fallback when there is no cover", () => {
   render(createElement(BookModal, { book }));
   expect(screen.getByRole("img", { name: "No cover image" })).toBeTruthy();
 });
+
+it("returns focus to the originating book when closed", () => {
+  window.matchMedia = vi
+    .fn()
+    .mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
+  render(
+    createElement("a", { href: "/library/a", "data-book-id": "a" }, "The Gruffalo spine"),
+  );
+  render(createElement(BookModal, { book }));
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(document.activeElement).toBe(screen.getByText("The Gruffalo spine"));
+});
