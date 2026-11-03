@@ -251,18 +251,27 @@
 .open-book[data-phase="flipping"] .open-book-cover {
   visibility: visible;
 }
-.open-book[data-phase="closed"] .open-book-content,
-.open-book[data-phase="flipping"] .open-book-content {
+.open-book[data-phase="closed"] .open-book-content {
   opacity: 0;
 }
-.open-book[data-phase="open"] .open-book-content {
-  animation: open-book-rise 300ms var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+/*
+ * The page text starts fading in while the cover is still turning (one rule for both
+ * phases, so the animation keeps running instead of restarting when the phase flips
+ * to "open"). Waiting for the turn to finish left a blank page that then popped in.
+ */
+.open-book:is([data-phase="flipping"], [data-phase="open"]) .open-book-content {
+  animation: open-book-rise 220ms var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation-delay: var(--content-delay, 0ms);
 }
-.open-book[data-phase="open"] .open-book-page--right .open-book-content:nth-child(2) {
-  animation-delay: 60ms;
+.open-book:is([data-phase="flipping"], [data-phase="open"])
+  .open-book-page--right
+  .open-book-content:nth-child(2) {
+  animation-delay: calc(var(--content-delay, 0ms) + 40ms);
 }
-.open-book[data-phase="open"] .open-book-page--right .open-book-content:nth-child(3) {
-  animation-delay: 120ms;
+.open-book:is([data-phase="flipping"], [data-phase="open"])
+  .open-book-page--right
+  .open-book-content:nth-child(3) {
+  animation-delay: calc(var(--content-delay, 0ms) + 80ms);
 }
 @keyframes open-book-rise {
   from {
@@ -285,7 +294,10 @@
   .open-book-spread {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    /* If a long title or meta pushes past the page, scroll the page so the actions stay reachable. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-radius: 8px;
     background: var(--paper);
   }
@@ -299,7 +311,9 @@
     box-shadow: inset 4px 0 0 var(--paper-edge);
   }
   .open-book-page--right {
-    flex: 1;
+    flex: 1 0 auto;
+    min-height: 0;
+    overflow: visible;
     padding: 0.75rem 1.25rem 1.25rem;
     border-radius: 0 0 8px 8px;
     box-shadow: inset 4px 0 0 var(--paper-edge);

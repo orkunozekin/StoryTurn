@@ -6,11 +6,11 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { type ShelfOrigin, spineLook, takeShelfOrigin } from "@/lib/shelf";
 import type { Book } from "@/lib/types";
 
-const OPEN_MS = 300;
-const FLIP_MS = 420;
-const CLOSE_FLIP_MS = 320;
-const CLOSE_MS = 280;
-const BOARD_FADE_MS = 160;
+const OPEN_MS = 200;
+const FLIP_MS = 340;
+const CLOSE_FLIP_MS = 260;
+const CLOSE_MS = 220;
+const BOARD_FADE_MS = 120;
 const COVER_RADIUS = "4px 14px 14px 4px";
 const COVER_OPEN_WIDE = "rotateY(-180deg)";
 const COVER_OPEN_PHONE = "rotateY(-105deg)";
@@ -54,9 +54,9 @@ const frame = (box: Box, radius: string, scale = 1): Keyframe => ({
 
 const liftedFrame = (box: Box, flat: boolean): Keyframe => {
   const lifted = flat
-    ? { ...box, cx: box.cx + 24, angle: 0 }
-    : { ...box, cy: box.cy - 24, angle: (box.angle - 90) / 2 };
-  return { ...frame(lifted, "4px", 1.04), offset: 0.12 };
+    ? { ...box, cx: box.cx + 12, angle: 0 }
+    : { ...box, cy: box.cy - 12, angle: (box.angle - 90) / 2 };
+  return { ...frame(lifted, "4px", 1.03), offset: 0.08 };
 };
 
 const isPhone = () => window.matchMedia("(max-width: 639px)").matches;
@@ -149,6 +149,8 @@ export function BookModal({ book }: { book: Book }) {
         if (cancelled) return;
         cover.style.opacity = "";
         ghost.hidden = true;
+        // Text begins rising just past the halfway point of the turn.
+        card.style.setProperty("--content-delay", `${Math.round(FLIP_MS * 0.5)}ms`);
         card.dataset.phase = "flipping";
         const phone = isPhone();
         for (const layer of layers()) {
@@ -167,11 +169,16 @@ export function BookModal({ book }: { book: Book }) {
                 { transform: COVER_OPEN_PHONE, opacity: 0 },
               ]
             : [{ transform: "rotateY(0deg)" }, { transform: COVER_OPEN_WIDE }],
-          { duration: FLIP_MS, easing: EASE_IN_OUT },
+          // Hold the open pose: without fill the cover snaps back over the right
+          // page for a frame before the "open" phase hides it (a visible flicker).
+          { duration: FLIP_MS, easing: EASE_IN_OUT, fill: "forwards" },
         );
         running.push(flip);
         return flip.finished.then(() => {
-          if (!cancelled) card.dataset.phase = "open";
+          if (cancelled) return;
+          card.dataset.phase = "open";
+          // The cover is hidden now, so the held transform can be released.
+          requestAnimationFrame(() => flip.cancel());
         });
       })
       .catch(() => {});
