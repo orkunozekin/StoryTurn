@@ -7,10 +7,11 @@ import {
   updateMemberAction,
   updateKidAction,
   deleteKidAction,
+  logoutAction,
 } from "@/app/actions";
 import { Trash2 } from "lucide-react";
 import { ConfirmationForm } from "@/components/confirmation-form";
-import { AppNav } from "@/components/app-nav";
+import { SiteNav } from "@/components/site-nav";
 import { CopyInviteLinkButton } from "@/components/copy-invite-link-button";
 import { CreateInviteForm } from "@/components/create-invite-form";
 import { RelationSelect } from "@/components/relation-select";
@@ -40,9 +41,9 @@ export default async function FamilyPage({
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <AppNav displayName={member.displayName} />
+      <SiteNav displayName={member.displayName} />
       <main className="mx-auto w-full max-w-5xl px-4 py-8">
-        <BackLink />
+        <BackLink hiddenWithTabs />
         <section className="animate-rise">
           <h1 className="font-display text-3xl text-primary">{admin.family.name}</h1>
           <p className="mt-1 text-muted-foreground">
@@ -61,7 +62,7 @@ export default async function FamilyPage({
           </p>
         )}
 
-        <div className="mt-6 grid items-start gap-6 xl:grid-cols-2">
+        <div className="mt-6 grid items-start gap-4 xl:grid-cols-2">
           <section className="story-panel rounded-2xl p-5 animate-rise-delay">
             <h2 className="font-display text-xl">Readers</h2>
             <ul className="mt-4 space-y-3">
@@ -226,7 +227,7 @@ export default async function FamilyPage({
           </section>
         </div>
 
-        <section className="story-panel mt-6 rounded-2xl p-5">
+        <section className="story-panel reveal mt-6 rounded-2xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-display text-xl">Invite codes</h2>
@@ -264,6 +265,22 @@ export default async function FamilyPage({
               );
             })}
           </ul>
+        </section>
+
+        <section className="story-panel reveal mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-5 lg:hidden">
+          <p className="text-sm text-muted-foreground">
+            Signed in as <span className="font-bold text-foreground">{member.displayName}</span>
+          </p>
+          <ConfirmationForm
+            title="Sign out?"
+            description="You will need to sign in again to access your family."
+            confirmLabel="Sign out"
+            action={logoutAction}
+          >
+            <Button type="submit" variant="outline" size="sm">
+              Sign out
+            </Button>
+          </ConfirmationForm>
         </section>
       </main>
     </div>

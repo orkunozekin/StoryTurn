@@ -12,7 +12,7 @@ import {
   saveScheduleAction,
   swapSessionsAction,
 } from "@/app/actions";
-import { AppNav } from "@/components/app-nav";
+import { SiteNav } from "@/components/site-nav";
 import { ToastForm } from "@/components/toast-form";
 import {
   AddRandomBooksForm,
@@ -86,9 +86,9 @@ export default async function SchedulePage({
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <AppNav displayName={member.displayName} />
+      <SiteNav displayName={member.displayName} />
       <main className="mx-auto w-full max-w-5xl px-4 py-8">
-        <BackLink />
+        <BackLink hiddenWithTabs />
         <section className="animate-rise">
           <h1 className="font-display text-3xl text-primary">Reading schedule</h1>
           <p className="mt-1 text-muted-foreground">
@@ -203,7 +203,7 @@ export default async function SchedulePage({
         )}
 
         {isOwner && futureScheduled.length > 0 && (
-          <div className="mt-6 grid gap-6 md:grid-cols-2">
+          <div className="reveal mt-6 grid gap-4 md:grid-cols-2">
             <ToastForm
               action={cascadeInsertAction}
               successMessage="Rotation cascaded forward"
@@ -322,7 +322,7 @@ export default async function SchedulePage({
           </ConfirmationForm>
         )}
 
-        <section className="mt-8">
+        <section className="reveal mt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-xl">Upcoming & recent</h2>
             <Form action="/schedule" scroll={false} className="flex items-center gap-2">
@@ -352,7 +352,7 @@ export default async function SchedulePage({
               <li key={session.id}>
                 <Link
                   href={`/sessions/${session.id}`}
-                  className="story-panel grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-x-3 gap-y-1 rounded-xl px-4 py-3 transition hover:border-primary/40 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)]"
+                  className="story-panel panel-interactive grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-x-3 gap-y-1 rounded-xl px-4 py-3 hover:border-primary/40 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)]"
                 >
                   <span className="min-w-0 break-words">
                     {formatRelativeSessionWhen(session.scheduledFor, {

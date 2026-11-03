@@ -9,7 +9,7 @@ import {
   shuffleSessionBooksAction,
   updateSessionAction,
 } from "@/app/actions";
-import { AppNav } from "@/components/app-nav";
+import { SiteNav } from "@/components/site-nav";
 import { CancelSessionForm } from "@/components/cancel-session-form";
 import { SessionBookPicker } from "@/components/session-book-picker";
 import { ToastForm } from "@/components/toast-form";
@@ -64,8 +64,8 @@ export default async function SessionPage({
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <AppNav displayName={member.displayName} />
-      <main className="mx-auto w-full max-w-3xl px-4 pb-8 pt-3">
+      <SiteNav displayName={member.displayName} />
+      <main className="mx-auto w-full max-w-3xl px-4 py-8">
         <BackLink compact />
         <section className="animate-rise">
           <div className="flex flex-wrap items-center gap-2">

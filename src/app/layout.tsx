@@ -1,17 +1,25 @@
 import type { Metadata } from "next";
-import { Fraunces, Source_Sans_3 } from "next/font/google";
+import { Atkinson_Hyperlegible, JetBrains_Mono, Young_Serif } from "next/font/google";
 import { ToastProvider } from "@/components/toast-provider";
 import { hydrateDemoSessionFromCookie } from "@/lib/demo-session";
 import "./globals.css";
 
-const display = Fraunces({
+const display = Young_Serif({
   variable: "--font-display",
   subsets: ["latin"],
+  weight: "400",
 });
 
-const sans = Source_Sans_3({
+const sans = Atkinson_Hyperlegible({
   variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
+const mono = JetBrains_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  weight: ["500"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +34,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${display.variable} ${sans.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
         <ToastProvider>{children}</ToastProvider>
