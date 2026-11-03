@@ -7,6 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-success: var(--success);
+  --color-status-scheduled: var(--status-scheduled);
+  --color-status-completed: var(--status-completed);
+  --color-status-cancelled: var(--status-cancelled);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
@@ -66,10 +69,13 @@
   --accent: #b8701a;
   --accent-foreground: #fffaf1;
   --destructive: #b4482f;
-  --border: #e2d7c2;
-  --input: #e2d7c2;
+  --border: #d6c8ad;
+  --input: #8f7f66;
   --ring: #b8701a;
   --success: #2f7d5d;
+  --status-scheduled: #7f4a0c;
+  --status-completed: #22634a;
+  --status-cancelled: #93371f;
   --chart-1: #b8701a;
   --chart-2: #2f7d5d;
   --chart-3: #b4482f;
@@ -82,7 +88,7 @@
   --sidebar-primary-foreground: #fffaf1;
   --sidebar-accent: #efe6d4;
   --sidebar-accent-foreground: #1d2137;
-  --sidebar-border: #e2d7c2;
+  --sidebar-border: #d6c8ad;
   --sidebar-ring: #b8701a;
   --glow: rgba(184, 112, 26, 0.14);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -107,10 +113,13 @@
     --accent: #f2b45a;
     --accent-foreground: #2a1a05;
     --destructive: #e7836b;
-    --border: #333d63;
-    --input: #333d63;
+    --border: #3d4873;
+    --input: #7480ab;
     --ring: #f2b45a;
     --success: #7fc3a4;
+    --status-scheduled: #f2b45a;
+    --status-completed: #7fc3a4;
+    --status-cancelled: #f0957f;
     --chart-1: #f2b45a;
     --chart-2: #7fc3a4;
     --chart-3: #e7836b;
@@ -122,7 +131,7 @@
     --sidebar-primary-foreground: #2a1a05;
     --sidebar-accent: #283256;
     --sidebar-accent-foreground: #ece6d8;
-    --sidebar-border: #333d63;
+    --sidebar-border: #3d4873;
     --sidebar-ring: #f2b45a;
     --glow: rgba(242, 180, 90, 0.12);
     color-scheme: dark;
@@ -482,64 +491,5 @@ body:has([data-app-tab-bar]) {
 @media (prefers-reduced-motion: reduce) {
   .shelf-spine {
     transition: opacity 220ms;
-  }
-}
-
-/* ---------- Book modal ---------- */
-.book-modal-cover {
-  background: var(--spine-color);
-  transition: background-color 300ms;
-}
-.book-modal[data-landed] .book-modal-cover {
-  background: color-mix(in oklab, var(--spine-color) 70%, #0b0f1d);
-}
-.book-modal-thumb {
-  width: 7.75rem;
-  height: 11.375rem;
-  flex: none;
-  border-radius: 4px 8px 8px 4px;
-  box-shadow:
-    0 10px 24px -8px rgba(0, 0, 0, 0.6),
-    inset 3px 0 0 rgba(0, 0, 0, 0.18);
-}
-.book-modal-fallback {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0 6px, transparent 6px 12px),
-    rgba(0, 0, 0, 0.22);
-  color: #fffaf1;
-  font: 500 0.6rem var(--font-geist-mono), ui-monospace, monospace;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.book-modal[data-landed] .book-modal-thumb {
-  animation: cover-in 320ms var(--ease-out) both;
-}
-.book-modal[data-landed] .book-modal-body > * {
-  animation: rise 260ms var(--ease-out) both;
-}
-.book-modal[data-landed] .book-modal-body > :nth-child(2) {
-  animation-delay: 60ms;
-}
-.book-modal[data-landed] .book-modal-body > :nth-child(3) {
-  animation-delay: 120ms;
-}
-.book-modal[data-landed] .book-modal-body > :nth-child(4) {
-  animation-delay: 180ms;
-}
-@keyframes cover-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) rotate(-4deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .book-modal[data-landed] .book-modal-thumb,
-  .book-modal[data-landed] .book-modal-body > * {
-    animation: none;
   }
 }

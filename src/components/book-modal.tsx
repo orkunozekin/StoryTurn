@@ -6,8 +6,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { type ShelfOrigin, spineLook, takeShelfOrigin } from "@/lib/shelf";
 import type { Book } from "@/lib/types";
 
-const OPEN_MS = 480;
-const CLOSE_MS = 360;
+const OPEN_MS = 200;
+const FLIP_MS = 340;
+const CLOSE_FLIP_MS = 260;
+const CLOSE_MS = 220;
+const BOARD_FADE_MS = 120;
+const COVER_RADIUS = "4px 14px 14px 4px";
+const COVER_OPEN_WIDE = "rotateY(-180deg)";
+const COVER_OPEN_PHONE = "rotateY(-105deg)";
 const EASE_OUT = "cubic-bezier(0.22, 1, 0.36, 1)";
 const EASE_IN_OUT = "cubic-bezier(0.65, 0, 0.35, 1)";
 
@@ -48,10 +54,12 @@ const frame = (box: Box, radius: string, scale = 1): Keyframe => ({
 
 const liftedFrame = (box: Box, flat: boolean): Keyframe => {
   const lifted = flat
-    ? { ...box, cx: box.cx + 24, angle: 0 }
-    : { ...box, cy: box.cy - 24, angle: (box.angle - 90) / 2 };
-  return { ...frame(lifted, "4px", 1.05), offset: 0.18 };
+    ? { ...box, cx: box.cx + 12, angle: 0 }
+    : { ...box, cy: box.cy - 12, angle: (box.angle - 90) / 2 };
+  return { ...frame(lifted, "4px", 1.03), offset: 0.08 };
 };
+
+const isPhone = () => window.matchMedia("(max-width: 639px)").matches;
 
 const cardBox = (card: HTMLElement): Box => {
   const r = card.getBoundingClientRect();
@@ -74,6 +82,7 @@ const metaRows = (book: Book) =>
 export function BookModal({ book }: { book: Book }) {
   const router = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
+  const coverRef = useRef<HTMLDivElement>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -82,13 +91,23 @@ export function BookModal({ book }: { book: Book }) {
   const look = spineLook(book);
   const [coverFailed, setCoverFailed] = useState(false);
 
+  /** Board and pages fade together while the cover swings. */
+  const layers = () => [
+    ...(cardRef.current?.querySelectorAll<HTMLElement>(
+      ".open-book-board, .open-book-spread",
+    ) ?? []),
+  ];
+
   useLayoutEffect(() => {
     const card = cardRef.current;
+    const cover = coverRef.current;
     const ghost = ghostRef.current;
     const scrim = scrimRef.current;
-    if (!card || !ghost || !scrim) return;
-    const origin = takeShelfOrigin(book.id);
-    originRef.current = origin;
+    if (!card || !cover || !ghost || !scrim) return;
+    // Strict Mode re-runs this effect; keep the origin taken on the first pass.
+    if (originRef.current?.bookId !== book.id)
+      originRef.current = takeShelfOrigin(book.id);
+    const origin = originRef.current;
     const reduce = prefersReducedMotion();
     scrim.animate([{ opacity: 0 }, { opacity: 1 }], {
       duration: reduce ? 1 : 300,
@@ -97,41 +116,75 @@ export function BookModal({ book }: { book: Book }) {
 
     if (!origin || reduce) {
       card.animate(
-        [
-          { opacity: 0, transform: "translateY(16px) scale(0.98)" },
-          { opacity: 1, transform: "none" },
-        ],
-        { duration: reduce ? 1 : 320, easing: EASE_OUT, fill: "both" },
+        reduce
+          ? [{ opacity: 0 }, { opacity: 1 }]
+          : [
+              { opacity: 0, transform: "translateY(16px) scale(0.98)" },
+              { opacity: 1, transform: "none" },
+            ],
+        { duration: reduce ? 200 : 320, easing: EASE_OUT, fill: "both" },
       );
-      card.dataset.landed = "";
+      card.dataset.phase = "open";
       return;
     }
 
     const start = boxFromOrigin(origin);
-    const end = cardBox(card);
+    const end = cardBox(cover);
     const spine = document.querySelector<HTMLElement>(
       `[data-book-id="${CSS.escape(book.id)}"]`,
     );
     if (spine) spine.style.visibility = "hidden";
-    card.style.opacity = "0";
+    card.dataset.phase = "closed";
+    cover.style.opacity = "0";
     ghost.hidden = false;
+    const running: Animation[] = [];
     const flight = ghost.animate(
-      [frame(start, "4px"), liftedFrame(start, origin.flat), frame(end, "1.5rem")],
-      {
-        duration: OPEN_MS,
-        easing: EASE_OUT,
-        fill: "both",
-      },
+      [frame(start, "4px"), liftedFrame(start, origin.flat), frame(end, COVER_RADIUS)],
+      { duration: OPEN_MS, easing: EASE_OUT, fill: "both" },
     );
+    running.push(flight);
+    let cancelled = false;
     flight.finished
       .then(() => {
-        card.style.opacity = "";
+        if (cancelled) return;
+        cover.style.opacity = "";
         ghost.hidden = true;
-        card.dataset.landed = "";
+        // Text begins rising just past the halfway point of the turn.
+        card.style.setProperty("--content-delay", `${Math.round(FLIP_MS * 0.5)}ms`);
+        card.dataset.phase = "flipping";
+        const phone = isPhone();
+        for (const layer of layers()) {
+          running.push(
+            layer.animate([{ opacity: 0 }, { opacity: 1 }], {
+              duration: BOARD_FADE_MS,
+              easing: EASE_OUT,
+              fill: "backwards",
+            }),
+          );
+        }
+        const flip = cover.animate(
+          phone
+            ? [
+                { transform: "rotateY(0deg)", opacity: 1 },
+                { transform: COVER_OPEN_PHONE, opacity: 0 },
+              ]
+            : [{ transform: "rotateY(0deg)" }, { transform: COVER_OPEN_WIDE }],
+          // Hold the open pose: without fill the cover snaps back over the right
+          // page for a frame before the "open" phase hides it (a visible flicker).
+          { duration: FLIP_MS, easing: EASE_IN_OUT, fill: "forwards" },
+        );
+        running.push(flip);
+        return flip.finished.then(() => {
+          if (cancelled) return;
+          card.dataset.phase = "open";
+          // The cover is hidden now, so the held transform can be released.
+          requestAnimationFrame(() => flip.cancel());
+        });
       })
       .catch(() => {});
     return () => {
-      flight.cancel();
+      cancelled = true;
+      for (const animation of running) animation.cancel();
       if (spine) spine.style.visibility = "";
     };
   }, [book.id]);
@@ -140,7 +193,7 @@ export function BookModal({ book }: { book: Book }) {
     if (closingRef.current) return;
     closingRef.current = true;
     const card = cardRef.current;
-    if (card) delete card.dataset.landed;
+    const cover = coverRef.current;
     const ghost = ghostRef.current;
     const scrim = scrimRef.current;
     const origin = originRef.current;
@@ -155,39 +208,60 @@ export function BookModal({ book }: { book: Book }) {
       }
       router.back();
     };
-    if (!card || !ghost || !scrim || prefersReducedMotion()) return finish();
+    // Reduced motion: close instantly (the route change itself is the transition).
+    if (!card || !cover || !ghost || !scrim || prefersReducedMotion()) return finish();
 
-    scrim.animate([{ opacity: 1 }, { opacity: 0 }], { duration: CLOSE_MS, fill: "both" });
+    scrim.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: CLOSE_FLIP_MS + CLOSE_MS,
+      fill: "both",
+    });
     if (!origin || !spine) {
       card
         .animate(
           [{ opacity: 1 }, { opacity: 0, transform: "translateY(12px) scale(0.98)" }],
-          {
-            duration: 200,
-            easing: EASE_IN_OUT,
-            fill: "both",
-          },
+          { duration: 200, easing: EASE_IN_OUT, fill: "both" },
         )
         .finished.then(finish, finish);
       return;
     }
-    // Fly back to where the spine is now (the page may have scrolled).
-    const box = spine.getBoundingClientRect();
-    const target = boxFromOrigin({
-      ...origin,
-      centerX: box.left + box.width / 2,
-      centerY: box.top + box.height / 2,
-    });
-    const end = cardBox(card);
-    card.style.opacity = "0";
-    ghost.hidden = false;
-    ghost
-      .animate([frame(end, "1.5rem"), frame(target, "4px")], {
-        duration: CLOSE_MS,
-        easing: EASE_IN_OUT,
-        fill: "both",
+
+    // Close the cover over the right page, then fly back to the spine.
+    card.dataset.phase = "flipping";
+    const phone = isPhone();
+    for (const layer of layers()) {
+      layer.animate([{ opacity: 1 }, { opacity: 1, offset: 0.6 }, { opacity: 0 }], {
+        duration: CLOSE_FLIP_MS,
+        fill: "forwards",
+      });
+    }
+    const flip = cover.animate(
+      phone
+        ? [
+            { transform: COVER_OPEN_PHONE, opacity: 0 },
+            { transform: "rotateY(0deg)", opacity: 1 },
+          ]
+        : [{ transform: COVER_OPEN_WIDE }, { transform: "rotateY(0deg)" }],
+      { duration: CLOSE_FLIP_MS, easing: EASE_IN_OUT, fill: "forwards" },
+    );
+    flip.finished
+      .then(() => {
+        // Fly to where the spine is now (the page may have scrolled).
+        const box = spine.getBoundingClientRect();
+        const target = boxFromOrigin({
+          ...origin,
+          centerX: box.left + box.width / 2,
+          centerY: box.top + box.height / 2,
+        });
+        const end = cardBox(cover);
+        card.style.opacity = "0";
+        ghost.hidden = false;
+        return ghost.animate([frame(end, COVER_RADIUS), frame(target, "4px")], {
+          duration: CLOSE_MS,
+          easing: EASE_IN_OUT,
+          fill: "both",
+        }).finished;
       })
-      .finished.then(finish, finish);
+      .then(finish, finish);
   }, [book.id, router]);
 
   useEffect(() => {
@@ -247,73 +321,84 @@ export function BookModal({ book }: { book: Book }) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="book-modal-title"
-          className="book-modal pointer-events-auto flex max-h-[min(40rem,calc(100dvh-2rem))] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-card text-card-foreground shadow-2xl"
+          data-phase="open"
+          className="open-book pointer-events-auto"
           style={{ "--spine-color": look.color } as React.CSSProperties}
         >
-          <div className="book-modal-cover flex shrink-0 items-center gap-5 p-5">
-            {book.coverUrl && !coverFailed ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={book.coverUrl}
-                alt={`Cover of ${book.title}`}
-                className="book-modal-thumb object-cover"
-                onError={() => setCoverFailed(true)}
-              />
-            ) : (
-              <div
-                className="book-modal-thumb book-modal-fallback"
-                role="img"
-                aria-label="No cover image"
-              >
-                <BookOpen className="size-7" aria-hidden="true" />
-                <span>No cover</span>
-              </div>
-            )}
-            <h2
-              id="book-modal-title"
-              className="font-display min-w-0 text-2xl leading-tight text-balance text-[#fffaf1]"
-            >
-              {book.title}
-            </h2>
-          </div>
-          <div className="book-modal-body flex min-h-0 flex-col gap-3 overflow-y-auto p-5">
-            <p className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
-              {authors}
-            </p>
-            {rows.length > 0 && (
-              <dl className="flex flex-wrap gap-2">
-                {rows.map(([label, value]) => (
+          <div className="open-book-board" aria-hidden="true" />
+          <div className="open-book-spread">
+            <div className="open-book-page open-book-page--left">
+              <div className="open-book-content">
+                {book.coverUrl && !coverFailed ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={book.coverUrl}
+                    alt={`Cover of ${book.title}`}
+                    className="open-book-thumb"
+                    onError={() => setCoverFailed(true)}
+                  />
+                ) : (
                   <div
-                    key={label}
-                    className="rounded-full bg-secondary px-3 py-1 text-sm"
+                    className="open-book-thumb open-book-fallback"
+                    role="img"
+                    aria-label="No cover image"
                   >
-                    <dt className="inline text-muted-foreground">{label}</dt>{" "}
-                    <dd className="inline font-bold">{value}</dd>
+                    <BookOpen className="size-7" aria-hidden="true" />
+                    <span>No cover</span>
                   </div>
-                ))}
-              </dl>
-            )}
-            <p className="line-clamp-6 text-[0.95rem] leading-relaxed whitespace-pre-line text-foreground/90">
-              {book.description || "No description was saved for this book."}
-            </p>
-            <div className="mt-1 flex flex-wrap gap-2">
-              <a
-                href={`/library/${book.id}`}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 font-bold text-primary-foreground transition-transform active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <ExternalLink className="size-4" aria-hidden="true" />
-                Full details
-              </a>
-              <button
-                ref={closeRef}
-                type="button"
-                onClick={close}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-5 font-bold transition-transform active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <X className="size-4" aria-hidden="true" />
-                Close
-              </button>
+                )}
+              </div>
+              <div className="open-book-content flex min-w-0 flex-col gap-2">
+                <h2 id="book-modal-title" className="open-book-title">
+                  {book.title}
+                </h2>
+                <p className="open-book-authors">{authors}</p>
+              </div>
             </div>
+            <div className="open-book-page open-book-page--right">
+              {rows.length > 0 ? (
+                <dl className="open-book-content flex flex-wrap gap-2">
+                  {rows.map(([label, value]) => (
+                    <div key={label} className="open-book-pill">
+                      <dt className="inline opacity-70">{label}</dt>{" "}
+                      <dd className="inline font-bold">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <span className="open-book-content hidden" />
+              )}
+              <p className="open-book-content open-book-desc">
+                {book.description || "No description was saved for this book."}
+              </p>
+              <div className="open-book-content flex flex-wrap gap-2">
+                <a
+                  href={`/library/${book.id}`}
+                  className="open-book-btn open-book-btn--primary"
+                >
+                  <ExternalLink className="size-4" aria-hidden="true" />
+                  Full details
+                </a>
+                <button
+                  ref={closeRef}
+                  type="button"
+                  onClick={close}
+                  className="open-book-btn open-book-btn--ghost"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+          <div ref={coverRef} className="open-book-cover" aria-hidden="true">
+            <div className="open-book-face open-book-face--front">
+              <p className="open-book-title">{book.title}</p>
+              <p className="mt-3 font-mono text-[0.7rem] tracking-[0.12em] uppercase opacity-80">
+                {authors}
+              </p>
+            </div>
+            <div className="open-book-face open-book-face--back" />
           </div>
         </div>
       </div>

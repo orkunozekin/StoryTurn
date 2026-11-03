@@ -1,0 +1,336 @@
+/* Open-book modal. Paper tones are dedicated (not --card) so the pages read as paper in both themes. */
+.open-book {
+  --paper: #f8f1e2;
+  --paper-edge: #e9dcc2;
+  --ink: #2a2418;
+  --ink-soft: #6f6450;
+  --pill: rgba(60, 45, 20, 0.08);
+  --board-pad: 9px;
+  position: relative;
+  width: min(54rem, 100%);
+  height: min(34rem, calc(100dvh - 2rem));
+  perspective: 2200px;
+  color: var(--ink);
+}
+@media (prefers-color-scheme: dark) {
+  .open-book {
+    /* Slightly dimmer paper at night, but still paper: dark ink on warm pages. */
+    --paper: #efe6d2;
+    --paper-edge: #d6c8aa;
+    --ink: #2a2418;
+    --ink-soft: #6a5f4c;
+    --pill: rgba(60, 45, 20, 0.09);
+  }
+}
+.open-book-board {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent calc(50% - 10px),
+      rgba(0, 0, 0, 0.35) 50%,
+      transparent calc(50% + 10px)
+    ),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.18)),
+    var(--spine-color);
+  box-shadow:
+    0 30px 60px -20px rgba(0, 0, 0, 0.65),
+    0 8px 18px -8px rgba(0, 0, 0, 0.5);
+}
+.open-book-spread {
+  position: absolute;
+  inset: var(--board-pad);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.open-book-page {
+  position: relative;
+  min-height: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(120, 90, 40, 0.025) 0 1px, transparent 1px 3px),
+    radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(120, 90, 40, 0.08)),
+    var(--paper);
+  display: flex;
+  flex-direction: column;
+}
+.open-book-page--left {
+  border-radius: 8px 2px 2px 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 2.25rem;
+  text-align: center;
+  box-shadow:
+    inset -28px 0 30px -24px rgba(0, 0, 0, 0.35),
+    inset 3px 0 0 var(--paper-edge);
+}
+.open-book-page--right {
+  border-radius: 2px 8px 8px 2px;
+  padding: 2rem 2.25rem 1.5rem;
+  gap: 1rem;
+  box-shadow:
+    inset 28px 0 30px -24px rgba(0, 0, 0, 0.35),
+    inset -3px 0 0 var(--paper-edge);
+}
+/* Gentle curl on the outer bottom corner. */
+.open-book-page--right::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 0 0 8px 0;
+  background: linear-gradient(
+    315deg,
+    transparent 45%,
+    rgba(0, 0, 0, 0.1) 50%,
+    var(--paper) 62%
+  );
+  pointer-events: none;
+}
+.open-book-thumb {
+  width: 9.5rem;
+  height: 14rem;
+  flex: none;
+  border-radius: 3px 6px 6px 3px;
+  object-fit: cover;
+  box-shadow:
+    0 14px 26px -12px rgba(0, 0, 0, 0.55),
+    inset 3px 0 0 rgba(0, 0, 0, 0.18);
+}
+.open-book-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.08) 0 6px,
+      transparent 6px 12px
+    ),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.25) 0 6px, transparent 6px), var(--spine-color);
+  color: #fffaf1;
+  font:
+    500 0.62rem var(--font-geist-mono),
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.open-book-title {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: 1.6rem;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.open-book-authors {
+  font:
+    500 0.72rem var(--font-geist-mono),
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.open-book-pill {
+  border-radius: 999px;
+  background: var(--pill);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+.open-book-desc {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.65;
+  white-space: pre-line;
+  padding-right: 0.25rem;
+}
+.open-book-desc::first-letter {
+  font-size: 2.4em;
+  float: left;
+  line-height: 0.9;
+  padding: 0.08em 0.1em 0 0;
+  color: var(--spine-color);
+}
+.open-book-btn {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0 1.25rem;
+  font-weight: 700;
+  transition: transform 160ms var(--ease-out, ease-out);
+}
+.open-book-btn:active {
+  transform: scale(0.96);
+}
+.open-book-btn:focus-visible {
+  outline: 2px solid var(--spine-color);
+  outline-offset: 2px;
+}
+.open-book-btn--primary {
+  background: var(--spine-color);
+  color: #fffaf1;
+}
+.open-book-btn--ghost {
+  border: 1px solid color-mix(in oklab, var(--ink) 25%, transparent);
+}
+
+/* The front cover: sits over the right page and swings open around the gutter. */
+.open-book-cover {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  right: 0;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  visibility: hidden;
+}
+.open-book-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.open-book-face--front {
+  border-radius: 4px 14px 14px 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.3) 0 10px,
+      rgba(255, 255, 255, 0.08) 10px 12px,
+      transparent 12px
+    ),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.2)),
+    var(--spine-color);
+  color: #fffaf1;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.65);
+}
+.open-book-face--front .open-book-title {
+  font-size: 1.9rem;
+  border-top: 1px solid rgba(255, 250, 241, 0.4);
+  border-bottom: 1px solid rgba(255, 250, 241, 0.4);
+  padding: 0.75rem 0;
+}
+.open-book-face--back {
+  transform: rotateY(180deg);
+  border-radius: 14px 4px 4px 14px;
+  background: var(--spine-color);
+  padding: var(--board-pad) 0 var(--board-pad) var(--board-pad);
+}
+.open-book-face--back::before {
+  content: "";
+  display: block;
+  height: 100%;
+  border-radius: 8px 2px 2px 8px;
+  background: var(--paper);
+  box-shadow: inset -28px 0 30px -24px rgba(0, 0, 0, 0.35);
+}
+
+/* Phase states, driven from book-modal.tsx. */
+.open-book[data-phase="closed"] .open-book-board,
+.open-book[data-phase="closed"] .open-book-spread {
+  opacity: 0;
+}
+.open-book[data-phase="closed"] .open-book-cover,
+.open-book[data-phase="flipping"] .open-book-cover {
+  visibility: visible;
+}
+.open-book[data-phase="closed"] .open-book-content {
+  opacity: 0;
+}
+/*
+ * The page text starts fading in while the cover is still turning (one rule for both
+ * phases, so the animation keeps running instead of restarting when the phase flips
+ * to "open"). Waiting for the turn to finish left a blank page that then popped in.
+ */
+.open-book:is([data-phase="flipping"], [data-phase="open"]) .open-book-content {
+  animation: open-book-rise 220ms var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation-delay: var(--content-delay, 0ms);
+}
+.open-book:is([data-phase="flipping"], [data-phase="open"])
+  .open-book-page--right
+  .open-book-content:nth-child(2) {
+  animation-delay: calc(var(--content-delay, 0ms) + 40ms);
+}
+.open-book:is([data-phase="flipping"], [data-phase="open"])
+  .open-book-page--right
+  .open-book-content:nth-child(3) {
+  animation-delay: calc(var(--content-delay, 0ms) + 80ms);
+}
+@keyframes open-book-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Phone: a single tall page on the board; the cover covers it all. */
+@media (max-width: 639px) {
+  .open-book {
+    width: 100%;
+    height: min(44rem, calc(100dvh - 2rem));
+  }
+  .open-book-board {
+    background:
+      linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.18)),
+      var(--spine-color);
+  }
+  .open-book-spread {
+    display: flex;
+    flex-direction: column;
+    /* If a long title or meta pushes past the page, scroll the page so the actions stay reachable. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 8px;
+    background: var(--paper);
+  }
+  .open-book-page--left {
+    flex: none;
+    flex-direction: row;
+    text-align: left;
+    justify-content: flex-start;
+    padding: 1.25rem 1.25rem 0.5rem;
+    border-radius: 8px 8px 0 0;
+    box-shadow: inset 4px 0 0 var(--paper-edge);
+  }
+  .open-book-page--right {
+    flex: 1 0 auto;
+    min-height: 0;
+    overflow: visible;
+    padding: 0.75rem 1.25rem 1.25rem;
+    border-radius: 0 0 8px 8px;
+    box-shadow: inset 4px 0 0 var(--paper-edge);
+  }
+  .open-book-thumb {
+    width: 6.5rem;
+    height: 9.5rem;
+  }
+  .open-book-title {
+    font-size: 1.35rem;
+  }
+  .open-book-cover {
+    left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .open-book[data-phase="open"] .open-book-content {
+    animation: none;
+  }
+}

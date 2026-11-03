@@ -68,3 +68,78 @@ export function sessionPageNumbers(
   });
   return result;
 }
+
+/**
+ * Filters for the schedule's "Reading nights" list. "upcoming" means scheduled nights
+ * from today on; past nights that were never logged only show under "all".
+ */
+export type SessionListFilter = "all" | "upcoming" | "completed" | "canceled";
+
+export const SESSION_LIST_FILTERS = [
+  "all",
+  "upcoming",
+  "completed",
+  "canceled",
+] as const satisfies readonly SessionListFilter[];
+
+export type SessionFilterCounts = Record<SessionListFilter, number>;
+
+/** Parses `?status=`; accepts both spellings of canceled and the legacy "scheduled". */
+export function sessionListFilter(value?: string | string[]): SessionListFilter {
+  switch (value) {
+    case "upcoming":
+    case "scheduled":
+      return "upcoming";
+    case "completed":
+      return "completed";
+    case "canceled":
+    case "cancelled":
+      return "canceled";
+    default:
+      return "all";
+  }
+}
+
+/** The `?status=` value for a filter, or undefined for "all". */
+export function sessionFilterParam(filter: SessionListFilter): string | undefined {
+  return filter === "all" ? undefined : filter;
+}
+
+/** Start of the family's local day in the wall-clock-as-UTC format sessions use. */
+export function sessionDayStart(today: string): string {
+  return `${today}T00:00:00Z`;
+}
+
+function isUpcoming(session: { status: SessionStatus; scheduledFor: string }, today: string) {
+  return session.status === "scheduled" && sessionDateKey(session.scheduledFor) >= today;
+}
+
+/**
+ * Filters and orders sessions for the list: upcoming nights soonest first, past or
+ * finished nights most recent first. "all" shows upcoming nights before the rest.
+ */
+export function filterSessionsForList<
+  T extends { id: string; status: SessionStatus; scheduledFor: string },
+>(sessions: T[], filter: SessionListFilter, today: string) {
+  const ascending = (a: T, b: T) =>
+    a.scheduledFor.localeCompare(b.scheduledFor) || a.id.localeCompare(b.id);
+  const descending = (a: T, b: T) => ascending(b, a);
+  const upcoming = sessions.filter((s) => isUpcoming(s, today)).sort(ascending);
+  const counts: SessionFilterCounts = {
+    all: sessions.length,
+    upcoming: upcoming.length,
+    completed: sessions.filter((s) => s.status === "completed").length,
+    canceled: sessions.filter((s) => s.status === "cancelled").length,
+  };
+  const byStatus = (status: SessionStatus) =>
+    sessions.filter((s) => s.status === status).sort(descending);
+  const items =
+    filter === "upcoming"
+      ? upcoming
+      : filter === "completed"
+        ? byStatus("completed")
+        : filter === "canceled"
+          ? byStatus("cancelled")
+          : [...upcoming, ...sessions.filter((s) => !isUpcoming(s, today)).sort(descending)];
+  return { items, counts };
+}

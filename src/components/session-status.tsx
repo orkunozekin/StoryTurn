@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 import type { SessionStatus } from "@/lib/types";
 
 const colors: Record<SessionStatus, string> = {
-  scheduled: "bg-accent/20 text-accent-foreground",
-  completed: "bg-secondary text-primary",
-  cancelled: "bg-destructive/10 text-destructive",
+  scheduled: "border-accent/45 bg-accent/15 text-status-scheduled",
+  completed: "border-success/45 bg-success/15 text-status-completed",
+  cancelled: "border-destructive/45 bg-destructive/15 text-status-cancelled",
 };
 
 export function SessionStatusBadge({

@@ -1,7 +1,11 @@
-import Form from "next/form";
 import { NativeSelect } from "@/components/ui/native-select";
-import { AutoSubmitSelect } from "@/components/auto-submit-select";
-import { sessionStatusFilter } from "@/lib/domain/session-presentation";
+import { ChoiceChip } from "@/components/ui/choice-chip";
+import {
+  SESSION_LIST_FILTERS,
+  sessionFilterParam,
+  sessionListFilter,
+  type SessionListFilter,
+} from "@/lib/domain/session-presentation";
 import { ConfirmationForm } from "@/components/confirmation-form";
 import { BackLink } from "@/components/back-link";
 export const dynamic = "force-dynamic";
@@ -44,6 +48,31 @@ import { sessionPageNumbers } from "@/lib/domain/session-presentation";
 import Link from "next/link";
 import { SessionStatusBadge } from "@/components/session-status";
 import { buttonVariants } from "@/components/ui/button";
+import "./schedule.css";
+
+const FILTER_LABELS: Record<SessionListFilter, string> = {
+  all: "All",
+  upcoming: "Scheduled",
+  completed: "Completed",
+  canceled: "Canceled",
+};
+
+const EMPTY_MESSAGES: Record<SessionListFilter, string> = {
+  all: "No reading nights yet.",
+  upcoming: "No upcoming nights scheduled.",
+  completed: "No completed nights yet.",
+  canceled: "No canceled nights.",
+};
+
+/** Filter pills omit `page` so switching filters always starts on page 1. */
+function scheduleHref(filter: SessionListFilter, page?: number) {
+  const params = new URLSearchParams();
+  if (page !== undefined) params.set("page", String(page));
+  const status = sessionFilterParam(filter);
+  if (status) params.set("status", status);
+  const query = params.toString();
+  return query ? `/schedule?${query}` : "/schedule";
+}
 
 export default async function SchedulePage({
   searchParams,
@@ -58,15 +87,14 @@ export default async function SchedulePage({
   if (!admin) redirect("/onboarding");
 
   const { page: requestedPage, status: requestedStatus } = await searchParams;
-  const status = sessionStatusFilter(requestedStatus);
-  const pagination = await getFamilySessionPage(requestedPage, status);
-  const assignments = pagination.assignments;
-  const sessions = pagination.items;
-  const names = Object.fromEntries(admin.readers.map((r) => [r.id, r.displayName]));
-
+  const filter = sessionListFilter(requestedStatus);
   const isOwner = member.role === "owner";
   const timeZone = admin.schedule?.timezone ?? DEFAULT_FAMILY_TIMEZONE;
   const today = formatDateOnlyInTimeZone(new Date(), timeZone);
+  const pagination = await getFamilySessionPage(requestedPage, filter, today);
+  const assignments = pagination.assignments;
+  const sessions = pagination.items;
+  const names = Object.fromEntries(admin.readers.map((r) => [r.id, r.displayName]));
   // Cascade/swap need the full upcoming set, not just the current page.
   const [allSessions, allAssignments, bookCta] = await Promise.all([
     listFamilySessions(),
@@ -98,35 +126,35 @@ export default async function SchedulePage({
         </section>
 
         {isOwner ? (
-          <NativeTimezoneForm action={saveScheduleAction}>
+          <NativeTimezoneForm
+            action={saveScheduleAction}
+            successMessage="Schedule saved"
+            celebrate
+          >
             <h2 className="font-display text-xl">
               {admin.schedule ? "Edit rotation" : "Create rotation"}
             </h2>
-            <div className="flex flex-wrap gap-3">
-              {admin.readers.map((reader) => (
-                <label
-                  key={reader.id}
-                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-bold">Readers in the rotation</legend>
+              <div className="flex flex-wrap gap-2">
+                {admin.readers.map((reader) => (
+                  <ChoiceChip
+                    key={reader.id}
+                    variant="chip"
                     name="readers"
                     value={reader.id}
+                    hint={`(${childRelationLabel(reader.relationToChildren)})`}
                     defaultChecked={
                       admin.schedule
                         ? admin.schedule.readerRotationMemberIds.includes(reader.id)
                         : true
                     }
-                  />
-                  <span>
+                  >
                     {reader.displayName}
-                    <span className="ml-1 text-muted-foreground">
-                      ({childRelationLabel(reader.relationToChildren)})
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
+                  </ChoiceChip>
+                ))}
+              </div>
+            </fieldset>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start date</Label>
@@ -160,14 +188,15 @@ export default async function SchedulePage({
                   defaultValue={admin.schedule?.booksPerSession ?? 1}
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm sm:col-span-2">
-                <input
-                  type="checkbox"
+              <div className="sm:col-span-2">
+                <ChoiceChip
+                  variant="row"
                   name="assignRandomBooks"
                   defaultChecked={admin.schedule?.assignRandomBooks ?? false}
-                />
-                Assign random books from the family library each night
-              </label>
+                >
+                  Assign random books from the family library each night
+                </ChoiceChip>
+              </div>
               <p className="text-sm text-muted-foreground sm:col-span-2">
                 Random assignments apply to new nights. If your library has fewer books,
                 we use the available books. Existing selections stay as they are.
@@ -177,7 +206,7 @@ export default async function SchedulePage({
                 update each night’s book list at any time.
               </p>
             </div>
-            <Button type="submit">Save schedule & generate nights</Button>
+            <Button type="submit">Save schedule</Button>
           </NativeTimezoneForm>
         ) : (
           <p className="story-panel mt-6 rounded-2xl p-5 text-sm text-muted-foreground">
@@ -323,30 +352,25 @@ export default async function SchedulePage({
         )}
 
         <section className="reveal mt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-xl">Upcoming & recent</h2>
-            <Form action="/schedule" scroll={false} className="flex items-center gap-2">
-              <Label htmlFor="session-status">Status</Label>
-              <div className="w-40">
-                <AutoSubmitSelect
-                  key={status ?? "all"}
-                  id="session-status"
-                  name="status"
-                  defaultValue={status ?? "all"}
-                >
-                  <option value="all">All statuses</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </AutoSubmitSelect>
-              </div>
-              <noscript>
-                <Button type="submit" variant="outline">
-                  Apply
-                </Button>
-              </noscript>
-            </Form>
-          </div>
+          <h2 id="reading-nights" className="font-display text-xl">
+            Reading nights
+          </h2>
+          <nav aria-label="Filter reading nights" className="chip-row mt-3">
+            {SESSION_LIST_FILTERS.map((option) => (
+              <Link
+                key={option}
+                href={scheduleHref(option)}
+                scroll={false}
+                className="chip schedule-filter-chip"
+                aria-current={option === filter ? "page" : undefined}
+              >
+                {FILTER_LABELS[option]}
+                <span className="schedule-filter-chip__count">
+                  {pagination.counts[option]}
+                </span>
+              </Link>
+            ))}
+          </nav>
           <ul className="mt-4 space-y-2">
             {sessions.map((session) => (
               <li key={session.id}>
@@ -373,7 +397,7 @@ export default async function SchedulePage({
           </ul>
           {pagination.total === 0 ? (
             <p className="mt-4 text-muted-foreground">
-              {status ? `No ${status} sessions.` : "No reading sessions yet."}
+              {EMPTY_MESSAGES[filter]}
             </p>
           ) : (
             <nav
@@ -390,7 +414,7 @@ export default async function SchedulePage({
                     ) : (
                       <Link
                         key={page}
-                        href={`/schedule?page=${page}${status ? `&status=${status}` : ""}`}
+                        href={scheduleHref(filter, page)}
                         aria-label={`Page ${page}`}
                         aria-current={page === pagination.page ? "page" : undefined}
                         className={buttonVariants({
@@ -405,7 +429,7 @@ export default async function SchedulePage({
               </div>
               <span className="text-sm" aria-live="polite">
                 Page {pagination.page} of {pagination.pageCount} · {pagination.total}{" "}
-                sessions
+                {pagination.total === 1 ? "night" : "nights"}
               </span>
             </nav>
           )}

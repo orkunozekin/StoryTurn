@@ -1,6 +1,9 @@
-import type { SessionStatus } from "@/lib/types";
 import { paginateLibrary } from "@/lib/domain/library-page";
-import { paginateSessions } from "@/lib/domain/session-presentation";
+import {
+  filterSessionsForList,
+  paginateSessions,
+  type SessionListFilter,
+} from "@/lib/domain/session-presentation";
 import {
   assertScheduleSettings,
   selectRandomBooks,
@@ -1112,12 +1115,11 @@ export function deleteKid(kidId: string): void {
 
 export function getFamilySessionPage(
   requestedPage?: string | string[],
-  status?: SessionStatus,
+  filter: SessionListFilter = "all",
+  today: string = new Date().toISOString().slice(0, 10),
 ) {
-  const pagination = paginateSessions(
-    listFamilySessions().filter((session) => !status || session.status === status),
-    requestedPage,
-  );
+  const { items, counts } = filterSessionsForList(listFamilySessions(), filter, today);
+  const pagination = { ...paginateSessions(items, requestedPage), counts };
   const ids = new Set(pagination.items.map((s) => s.id));
   const assignments = state().assignments.filter(
     (a) => ids.has(a.sessionId) && a.isCurrent,
