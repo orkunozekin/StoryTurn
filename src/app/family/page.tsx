@@ -61,7 +61,7 @@ export default async function FamilyPage({
           </p>
         )}
 
-        <div className="mt-6 grid items-start gap-6 xl:grid-cols-2">
+        <div className="mt-6 grid items-start gap-4 xl:grid-cols-2">
           <section className="story-panel rounded-2xl p-5 animate-rise-delay">
             <h2 className="font-display text-xl">Readers</h2>
             <ul className="mt-4 space-y-3">
@@ -226,7 +226,7 @@ export default async function FamilyPage({
           </section>
         </div>
 
-        <section className="story-panel mt-6 rounded-2xl p-5">
+        <section className="story-panel reveal mt-6 rounded-2xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-display text-xl">Invite codes</h2>

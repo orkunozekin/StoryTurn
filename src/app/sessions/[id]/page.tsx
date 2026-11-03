@@ -65,7 +65,7 @@ export default async function SessionPage({
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <AppNav displayName={member.displayName} />
-      <main className="mx-auto w-full max-w-3xl px-4 pb-8 pt-3">
+      <main className="mx-auto w-full max-w-3xl px-4 py-8">
         <BackLink compact />
         <section className="animate-rise">
           <div className="flex flex-wrap items-center gap-2">

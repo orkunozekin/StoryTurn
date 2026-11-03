@@ -113,6 +113,16 @@ input[type="reset"] {
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
   }
 }
 
@@ -133,6 +143,48 @@ input[type="reset"] {
   }
   .animate-glow {
     animation: glow 2.8s ease-in-out infinite;
+  }
+  /* Scroll-driven reveal: pure CSS, no JS. Falls back to fully visible. */
+  .reveal {
+    @supports (animation-timeline: view()) {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
+  .reveal-stagger > * {
+    @supports (animation-timeline: view()) {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+  }
+  .panel-interactive {
+    transition:
+      transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 200ms ease,
+      border-color 200ms ease;
+  }
+  .panel-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 44px -26px rgba(22, 48, 43, 0.55);
+  }
+  .panel-interactive:active {
+    transform: translateY(0) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-rise-delay,
+  .animate-glow,
+  .reveal,
+  .reveal-stagger > * {
+    animation: none !important;
+  }
+  .panel-interactive,
+  .panel-interactive:hover {
+    transform: none;
   }
 }
 

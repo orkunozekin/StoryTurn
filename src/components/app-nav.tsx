@@ -12,6 +12,7 @@ import {
 import { ConfirmationForm } from "@/components/confirmation-form";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { logoutAction } from "@/app/actions";
@@ -40,6 +41,9 @@ const serverSnapshot = () => false;
 
 export function AppNav({ displayName }: { displayName: string }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname() ?? "";
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
   const menuId = useId();
   const toggleRef = useRef<HTMLButtonElement>(null);
   const hydrated = useSyncExternalStore(
@@ -60,7 +64,7 @@ export function AppNav({ displayName }: { displayName: string }) {
 
   return (
     <header
-      className="border-b border-border/70 bg-[color-mix(in_oklab,var(--card)_85%,transparent)] backdrop-blur-md"
+      className="sticky top-0 z-40 border-b border-border/70 bg-[color-mix(in_oklab,var(--card)_85%,transparent)] backdrop-blur-md"
       onKeyDown={(event) => {
         if (event.key === "Escape" && open) {
           setOpen(false);
@@ -81,7 +85,8 @@ export function AppNav({ displayName }: { displayName: string }) {
               <Link
                 key={link.href}
                 href={link.href}
-                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-base font-semibold text-foreground transition hover:bg-secondary hover:text-foreground"
+                aria-current={isActive(link.href) ? "page" : undefined}
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-base font-semibold text-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-[current=page]:bg-secondary aria-[current=page]:text-primary"
               >
                 <NavLinkLabel icon={link.icon} label={link.label} />
               </Link>
@@ -150,7 +155,8 @@ export function AppNav({ displayName }: { displayName: string }) {
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-semibold text-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                aria-current={isActive(link.href) ? "page" : undefined}
+                className="aria-[current=page]:bg-secondary flex items-center gap-2 rounded-lg px-3 py-3 text-base font-semibold text-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <NavLinkLabel icon={link.icon} label={link.label} />
               </Link>

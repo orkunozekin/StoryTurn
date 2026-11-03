@@ -26,7 +26,7 @@ export default async function LibraryPage() {
           </p>
         </section>
 
-        <section className="story-panel mt-6 rounded-2xl p-5 animate-rise-delay">
+        <section className="story-panel reveal mt-6 rounded-2xl p-5">
           <h2 className="font-display text-xl">Find a book</h2>
           <div className="mt-3">
             <BookScanner />
@@ -40,7 +40,7 @@ export default async function LibraryPage() {
           </div>
         </section>
 
-        <section className="mt-8">
+        <section className="reveal mt-6">
           <h2 className="font-display text-xl">In your collection</h2>
           <LibraryCollection books={books} />
         </section>
