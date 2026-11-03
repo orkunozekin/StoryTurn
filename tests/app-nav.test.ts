@@ -48,6 +48,15 @@ it("toggles mobile navigation and restores focus when Escape closes it", async (
     "Schedule",
     "Family",
   ]);
+  expect(
+    links.map((link) => link.querySelector("svg")?.getAttribute("aria-hidden")),
+  ).toEqual(["true", "true", "true", "true", "true"]);
+  const desktopNav = screen.getByRole("navigation", { name: "Main navigation" });
+  expect(
+    within(desktopNav)
+      .getAllByRole("link")
+      .map((link) => link.querySelector("svg")?.getAttribute("aria-hidden")),
+  ).toEqual(["true", "true", "true", "true", "true"]);
   links[0].focus();
   await user.keyboard("{Escape}");
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
