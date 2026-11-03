@@ -99,3 +99,12 @@ it("clears list selections when the filter changes so hidden books are never rem
   });
   expect(screen.queryByRole("button", { name: /Remove selected/ })).toBeNull();
 });
+
+it("falls back to All when the selected format no longer exists", () => {
+  const { rerender } = render(createElement(BookShelf, { books }));
+  fireEvent.click(screen.getByRole("button", { name: "Board book" }));
+  expect(spine("Owl Babies").className).toContain("is-dimmed");
+  rerender(createElement(BookShelf, { books: books.filter((b) => b.id !== "a") }));
+  expect(spine("Owl Babies").className).not.toContain("is-dimmed");
+  expect(spine("Stick Man").className).not.toContain("is-dimmed");
+});

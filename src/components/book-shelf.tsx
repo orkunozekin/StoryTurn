@@ -64,9 +64,11 @@ export function BookShelf({ books }: { books: Book[] }) {
   const [format, setFormat] = useState(ALL);
   const [view, setView] = useState<View>("shelf");
   const formats = useMemo(() => formatsOf(books), [books]);
+  // A removed book can take the last of a format with it; fall back to All.
+  const activeFormat = format === ALL || formats.includes(format) ? format : ALL;
 
   const matches = (book: Book) =>
-    matchesQuery(book, query) && (format === ALL || book.format === format);
+    matchesQuery(book, query) && (activeFormat === ALL || book.format === activeFormat);
   const matchCount = books.filter(matches).length;
 
   if (books.length === 0) {
@@ -124,7 +126,7 @@ export function BookShelf({ books }: { books: Book[] }) {
             <button
               key={value}
               type="button"
-              aria-pressed={format === value}
+              aria-pressed={activeFormat === value}
               onClick={() => setFormat(value)}
               className="chip"
             >
@@ -157,7 +159,7 @@ export function BookShelf({ books }: { books: Book[] }) {
       ) : (
         /* Remount on filter change so selections never include books that are hidden. */
         <LibraryCollection
-          key={`${query.trim()}|${format}`}
+          key={`${query.trim()}|${activeFormat}`}
           books={books.filter(matches)}
         />
       )}
