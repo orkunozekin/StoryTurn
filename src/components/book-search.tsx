@@ -36,6 +36,7 @@ function toBookInput(book: BookSearchResult): BookInput {
     openLibraryKey: book.openLibraryKey,
     coverUrl: book.coverUrl,
     isbn: book.isbn,
+    description: book.description,
   };
 }
 
@@ -46,6 +47,7 @@ function toFormData(input: BookInput, resolution?: AddBookResolution): FormData 
   formData.set("openLibraryKey", input.openLibraryKey ?? "");
   formData.set("coverUrl", input.coverUrl ?? "");
   formData.set("isbn", input.isbn ?? "");
+  formData.set("description", input.description ?? "");
   if (resolution) {
     formData.set("resolution", resolution.action);
     if (resolution.action === "replace") {

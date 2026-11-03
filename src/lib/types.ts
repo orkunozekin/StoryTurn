@@ -62,6 +62,8 @@ export interface Book {
   openLibraryKey: string | null;
   coverUrl: string | null;
   isbn: string | null;
+  /** Plain text from Google Books or Open Library. */
+  description?: string | null;
   createdAt: string;
 }
 

@@ -35,10 +35,7 @@ import {
 } from "@/lib/domain/book-duplicates";
 import { computeDashboardStats } from "@/lib/domain/stats";
 import { birthdayFromAge, parseBirthday } from "@/lib/domain/kids";
-import {
-  DEFAULT_FAMILY_TIMEZONE,
-  formatDateOnlyInTimeZone,
-} from "@/lib/domain/dates";
+import { DEFAULT_FAMILY_TIMEZONE, formatDateOnlyInTimeZone } from "@/lib/domain/dates";
 import { parseChildRelation, type ChildRelation } from "@/lib/domain/relations";
 import { addDays, formatDateOnly, readerForDate } from "@/lib/domain/rotation";
 import {
@@ -85,9 +82,7 @@ function setSessionLibraryBooks(sessionId: string, bookIds: string[]): void {
   const freeform = state().sessionBooks.filter(
     (b) => b.sessionId === sessionId && b.bookId === null,
   );
-  state().sessionBooks = state().sessionBooks.filter(
-    (b) => b.sessionId !== sessionId,
-  );
+  state().sessionBooks = state().sessionBooks.filter((b) => b.sessionId !== sessionId);
   const now = new Date().toISOString();
   for (const bookId of bookIds) {
     state().sessionBooks.push({
@@ -114,17 +109,14 @@ function assignRandomBooksToSession(
 
 function familyTimezone(familyId: string): string {
   return (
-    state().schedules.find((s) => s.familyId === familyId && s.active)
-      ?.timezone ?? DEFAULT_FAMILY_TIMEZONE
+    state().schedules.find((s) => s.familyId === familyId && s.active)?.timezone ??
+    DEFAULT_FAMILY_TIMEZONE
   );
 }
 
 function upcomingScheduledSessions(familyId: string): ReadingSession[] {
   // Match schedule UI: family-local calendar day, not UTC date-only.
-  const today = formatDateOnlyInTimeZone(
-    new Date(),
-    familyTimezone(familyId),
-  );
+  const today = formatDateOnlyInTimeZone(new Date(), familyTimezone(familyId));
   return state()
     .sessions.filter(
       (s) =>
@@ -233,9 +225,7 @@ export function createFamily(
 export function findInviteByCode(codeRaw: string) {
   const code = normalizeInviteCode(codeRaw);
   if (!code) return null;
-  const invite = state().invites.find(
-    (i) => normalizeInviteCode(i.code) === code,
-  );
+  const invite = state().invites.find((i) => normalizeInviteCode(i.code) === code);
   if (!invite) return null;
   const family = state().families.find((f) => f.id === invite.familyId) ?? null;
   const usable = isInviteUsable({
@@ -308,9 +298,7 @@ export async function cascadeInsertReader(input: {
   );
   if (!fillIn) throw new Error("Fill-in reader must be in your family");
 
-  const familySessions = state().sessions.filter(
-    (s) => s.familyId === actor.familyId,
-  );
+  const familySessions = state().sessions.filter((s) => s.familyId === actor.familyId);
   const nights = orderedFutureScheduledNights({
     sessions: familySessions,
     assignments: state().assignments,
@@ -320,9 +308,7 @@ export async function cascadeInsertReader(input: {
   const plan = buildCascadePlan({
     nights,
     fillInMemberId: input.fillInMemberId,
-    allFamilySessionDates: familySessions.map((s) =>
-      sessionDateKey(s.scheduledFor),
-    ),
+    allFamilySessionDates: familySessions.map((s) => sessionDateKey(s.scheduledFor)),
   });
 
   const schedule = state().schedules.find(
@@ -466,9 +452,7 @@ export async function swapSessionReaders(input: {
   sessionBId: string;
 }): Promise<void> {
   const actor = requireOwner();
-  const familySessions = state().sessions.filter(
-    (s) => s.familyId === actor.familyId,
-  );
+  const familySessions = state().sessions.filter((s) => s.familyId === actor.familyId);
   const a = familySessions.find((s) => s.id === input.sessionAId);
   const b = familySessions.find((s) => s.id === input.sessionBId);
   if (!a || !b) throw new Error("Both nights must belong to your family");
@@ -549,6 +533,9 @@ export function addBookFromSearch(
   const check = checkForDuplicate(library, incoming);
 
   if (check.kind === "same_isbn") {
+    if (!check.existing.description && incoming.description) {
+      check.existing.description = incoming.description;
+    }
     return { status: "already_in_library", existing: check.existing };
   }
 
@@ -1005,6 +992,15 @@ export function getLibrary() {
   return state().books.filter((b) => b.familyId === member.familyId);
 }
 
+export function getBook(id: string) {
+  const member = getCurrentMember();
+  if (!member) return null;
+  return (
+    state().books.find((book) => book.id === id && book.familyId === member.familyId) ??
+    null
+  );
+}
+
 export function getFamilyAdmin() {
   const member = getCurrentMember();
   if (!member) return null;
@@ -1170,7 +1166,11 @@ export function saveBookEdition(
       b.editionKey &&
       (b.editionKey === input.editionKey || (input.isbn && b.isbn === input.isbn)),
   );
-  if (existing) return { book: existing, created: false };
+  if (existing) {
+    if (!existing.description && input.description)
+      existing.description = input.description;
+    return { book: existing, created: false };
+  }
   let result = addBookFromSearch(input);
   if (result.status === "possible_duplicate") {
     result = addBookFromSearch(input, { action: "keep_both" });

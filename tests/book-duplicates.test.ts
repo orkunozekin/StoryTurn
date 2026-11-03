@@ -65,6 +65,7 @@ describe("mergeKeptBook", () => {
         coverUrl: "https://x/new.jpg",
         isbn: "9780060775858",
         openLibraryKey: "/works/OL1W",
+        description: null,
       }),
     );
   });
@@ -84,9 +85,9 @@ describe("normalizeTitleKey", () => {
 
 describe("isLikelySameBook", () => {
   it("matches same title with matching author in another format", () => {
-    expect(
-      isLikelySameBook(book(), input({ authors: ["Brown, Margaret Wise"] })),
-    ).toBe(true);
+    expect(isLikelySameBook(book(), input({ authors: ["Brown, Margaret Wise"] }))).toBe(
+      true,
+    );
     expect(isLikelySameBook(book(), input({ authors: ["Margaret Brown"] }))).toBe(true);
   });
 
@@ -107,10 +108,16 @@ describe("isLikelySameBook", () => {
 describe("recommendKeep", () => {
   it("prefers the copy with a cover thumbnail", () => {
     expect(
-      recommendKeep(book({ isbn: "9780060775858" }), input({ coverUrl: "https://x/c.jpg" })),
+      recommendKeep(
+        book({ isbn: "9780060775858" }),
+        input({ coverUrl: "https://x/c.jpg" }),
+      ),
     ).toBe("incoming");
     expect(
-      recommendKeep(book({ coverUrl: "https://x/c.jpg" }), input({ isbn: "9780060775858" })),
+      recommendKeep(
+        book({ coverUrl: "https://x/c.jpg" }),
+        input({ isbn: "9780060775858" }),
+      ),
     ).toBe("existing");
   });
 
@@ -118,10 +125,27 @@ describe("recommendKeep", () => {
     expect(recommendKeep(book(), input())).toBe("existing");
   });
 
-  it("scores cover above ISBN, authors, and Open Library key combined", () => {
+  it("prefers a copy that adds a description when other details match", () => {
+    expect(recommendKeep(book(), input({ description: "A bunny says goodnight." }))).toBe(
+      "incoming",
+    );
+  });
+
+  it("fills a missing description from the other copy", () => {
+    expect(
+      mergeKeptBook(input(), input({ description: "A bunny says goodnight." }))
+        .description,
+    ).toBe("A bunny says goodnight.");
+  });
+
+  it("scores cover above ISBN, authors, description, and Open Library key combined", () => {
     expect(bookMetadataScore(input({ coverUrl: "c", authors: [] }))).toBeGreaterThan(
       bookMetadataScore(
-        input({ isbn: "9780060775858", openLibraryKey: "/works/OL1W" }),
+        input({
+          isbn: "9780060775858",
+          openLibraryKey: "/works/OL1W",
+          description: "A bunny says goodnight.",
+        }),
       ),
     );
   });
@@ -133,7 +157,10 @@ describe("checkForDuplicate", () => {
       book({ id: "later", isbn: "9780316769488", createdAt: "2026-02-01T00:00:00.000Z" }),
       book({ id: "earlier", isbn: "0316769487", createdAt: "2026-01-01T00:00:00.000Z" }),
     ];
-    const result = checkForDuplicate(library, input({ title: "Anything", isbn: "9780316769488" }));
+    const result = checkForDuplicate(
+      library,
+      input({ title: "Anything", isbn: "9780316769488" }),
+    );
     expect(result).toEqual({ kind: "same_isbn", existing: library[1] });
   });
 
@@ -149,12 +176,17 @@ describe("checkForDuplicate", () => {
   it("treats identical non-barcode provider ids as the same book", () => {
     const existing = book({ isbn: "UOM:39015012345678" });
     expect(
-      checkForDuplicate([existing], input({ title: "Other", isbn: " UOM:39015012345678 " })),
+      checkForDuplicate(
+        [existing],
+        input({ title: "Other", isbn: " UOM:39015012345678 " }),
+      ),
     ).toEqual({ kind: "same_isbn", existing });
   });
 
   it("returns none for a new book", () => {
-    expect(checkForDuplicate([book()], input({ title: "Corduroy", authors: ["Don Freeman"] }))).toEqual({
+    expect(
+      checkForDuplicate([book()], input({ title: "Corduroy", authors: ["Don Freeman"] })),
+    ).toEqual({
       kind: "none",
     });
   });

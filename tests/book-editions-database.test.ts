@@ -206,6 +206,78 @@ it("preserves legacy wishlist promotion without granting scan ownership writes",
   await db.exec("reset role");
 });
 
+it("stores a description for Google volume ids and still rejects unsafe edition keys", async () => {
+  const saved = await save({
+    ...metadata,
+    editionKey: "google:zyTCAlFPjgYC",
+    isbn: "9780694003617",
+    description: "  A caterpillar eats through the week.  ",
+  });
+  expect(saved.created).toBe(true);
+  const row = saved.book as { edition_key?: string; description?: string; isbn?: string };
+  expect(row.edition_key).toBe("google:zyTCAlFPjgYC");
+  expect(row.isbn).toBe("9780694003617");
+  expect(row.description).toBe("A caterpillar eats through the week.");
+  const again = await save({
+    ...metadata,
+    editionKey: "google:zyTCAlFPjgYC",
+    isbn: "9780694003617",
+    description: "This later blurb must not replace the first.",
+  });
+  expect(again.created).toBe(false);
+  expect((again.book as { description?: string }).description).toBe(
+    "A caterpillar eats through the week.",
+  );
+  const blank = await save({
+    ...metadata,
+    editionKey: "/books/OL91M",
+    isbn: "9780064430173",
+    description: null,
+  });
+  const filled = await save({
+    ...metadata,
+    editionKey: "/books/OL91M",
+    isbn: "9780064430173",
+    description: "A bunny says goodnight.",
+  });
+  expect(filled.created).toBe(false);
+  expect(filled.book.id).toBe(blank.book.id);
+  expect((filled.book as { description?: string }).description).toBe(
+    "A bunny says goodnight.",
+  );
+  await expect(
+    save({ ...metadata, editionKey: "google:../nope", isbn: null }),
+  ).rejects.toThrow(/Invalid edition/);
+});
+
+it("lets a family member set a description without writing edition identity", async () => {
+  const saved = await save({
+    ...metadata,
+    editionKey: "/books/OL90M",
+    isbn: "9780142410387",
+    description: null,
+  });
+  await db.exec(
+    "grant usage on schema public,auth to authenticated; grant select on books to authenticated; set role authenticated",
+  );
+  await db.query("update books set description=$2 where id=$1", [
+    saved.book.id,
+    "A quiet story.",
+  ]);
+  await expect(
+    db.query("update books set edition_key='google:hack' where id=$1", [saved.book.id]),
+  ).rejects.toThrow(/permission/);
+  await db.exec("reset role");
+  expect(
+    (
+      await db.query<{ description: string }>(
+        "select description from books where id=$1",
+        [saved.book.id],
+      )
+    ).rows[0].description,
+  ).toBe("A quiet story.");
+});
+
 it("keeps saves and Undo active in the first tab after starting a second scan", async () => {
   const first = (await db.query<{ id: string }>("select start_book_scan() as id")).rows[0]
     .id;

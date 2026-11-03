@@ -28,6 +28,7 @@ Session `scheduledFor` values are **family-local wall times** (date + bedtime), 
 - Shelf-scan Google hits must **prefer the validated scanned ISBN** over provider `industryIdentifiers` (Google may return `OTHER` / non-barcode values).
 - Provider/pacing failures during shelf scan must surface as `kind: "lookup"` (retry), never as `kind: "unknown"` / “No ISBN match”. A Google empty response must not mask a later Open Library failure.
 - Shelf scan matches library search: **Google Books first** (when configured), then Open Library. Set `GOOGLE_BOOKS_API_KEY` in deployed envs — many kids’ books are missing from Open Library by ISBN.
+- Store a plain-text `description` (HTML stripped, 4000 characters) from Google Books `volumeInfo.description` and from Open Library edition or work text. The library book page at `/library/[id]` reads `books.description`.
 - Mute ZXing `MultiFormatReader: non-ReaderException` warnings while the camera is live (empty-frame noise, not lookup failures).
 
 ## Library duplicates

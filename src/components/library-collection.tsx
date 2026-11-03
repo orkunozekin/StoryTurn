@@ -1,5 +1,6 @@
 "use client";
 import { Pencil } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { correctFormatAction, removeBooksAction } from "@/app/book-actions";
 import { editionLabel } from "@/lib/book-edition";
@@ -125,26 +126,31 @@ export function LibraryCollection({ books }: { books: Book[] }) {
                 )
               }
             />
-            {book.coverUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={book.coverUrl}
-                alt=""
-                className="h-14 w-10 shrink-0 rounded object-cover"
-              />
-            )}
-            <div className="min-w-0 flex-1 break-words">
-              <p className="font-medium">{book.title}</p>
-              <p>{book.authors.join(", ") || "Unknown author"}</p>
-              {editionLabel(book) && (
-                <p className="text-sm text-muted-foreground">{editionLabel(book)}</p>
+            <Link
+              href={`/library/${book.id}`}
+              className="flex min-w-0 flex-1 items-start gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              {book.coverUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={book.coverUrl}
+                  alt=""
+                  className="h-14 w-10 shrink-0 rounded object-cover"
+                />
               )}
-              {!book.editionKey && (
-                <p className="text-xs text-muted-foreground">
-                  Legacy entry: edition unverified
-                </p>
-              )}
-            </div>
+              <div className="min-w-0 flex-1 break-words">
+                <p className="font-medium text-primary">{book.title}</p>
+                <p>{book.authors.join(", ") || "Unknown author"}</p>
+                {editionLabel(book) && (
+                  <p className="text-sm text-muted-foreground">{editionLabel(book)}</p>
+                )}
+                {!book.editionKey && (
+                  <p className="text-xs text-muted-foreground">
+                    Legacy entry: edition unverified
+                  </p>
+                )}
+              </div>
+            </Link>
             {!book.format && <FormatCorrection book={book} />}
           </li>
         ))}

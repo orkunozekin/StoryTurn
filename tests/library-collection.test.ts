@@ -120,6 +120,9 @@ it("omits empty metadata and empty parentheses from collection labels", () => {
   expect(
     screen.getByRole("checkbox", { name: "Select First" }),
   ).toBeTruthy();
+  expect(screen.getByRole("link", { name: /First/ }).getAttribute("href")).toBe(
+    "/library/one",
+  );
   expect(
     [...container.querySelectorAll("p")].every((line) => !!line.textContent?.trim()),
   ).toBe(true);

@@ -14,6 +14,7 @@ import {
   type BookInput,
 } from "@/lib/domain/book-duplicates";
 import { generateInviteCode } from "@/lib/domain/invites";
+import { plainBookDescription } from "@/lib/book-description";
 import { normalizeToIsbn13 } from "@/lib/isbn";
 import {
   SESSION_BOOK_PICK_COUNT,
@@ -378,6 +379,18 @@ export async function getUpcomingBookCtaState() {
     withoutBooksCount: upcoming.length - withBooksCount,
     withBooksCount,
   };
+}
+
+export async function getBook(id: string): Promise<Book | null> {
+  const { supabase, member } = requireMember(await loadContext());
+  const { data, error } = await supabase
+    .from("books")
+    .select("*")
+    .eq("family_id", member.familyId)
+    .eq("id", id)
+    .maybeSingle();
+  assertNoError(error, "Could not load book");
+  return data ? mapBook(data as Row) : null;
 }
 
 export async function getLibrary(): Promise<Book[]> {
@@ -1136,6 +1149,7 @@ function bookColumns(input: BookInput): Row {
     cover_url: input.coverUrl,
     isbn: input.isbn,
     normalized_isbn: input.isbn ? normalizeToIsbn13(input.isbn) : null,
+    description: plainBookDescription(input.description),
   };
 }
 
@@ -1156,6 +1170,17 @@ export async function addBookFromSearch(
   const check = checkForDuplicate(await loadLibrary(), incoming);
 
   if (check.kind === "same_isbn") {
+    if (!check.existing.description && incoming.description) {
+      const { data, error } = await supabase
+        .from("books")
+        .update({ description: plainBookDescription(incoming.description) })
+        .eq("id", check.existing.id)
+        .eq("family_id", member.familyId)
+        .select("*")
+        .single();
+      assertNoError(error, "Could not save book description");
+      return { status: "already_in_library", existing: mapBook(data as Row) };
+    }
     return { status: "already_in_library", existing: check.existing };
   }
 

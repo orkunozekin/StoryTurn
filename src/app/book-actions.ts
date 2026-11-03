@@ -20,6 +20,7 @@ import {
   parseScannedBookCode,
   scannedBookCodeMessage,
 } from "@/lib/isbn";
+import { plainBookDescription } from "@/lib/book-description";
 import type { BookInput } from "@/lib/book-edition";
 
 async function authorize() {
@@ -34,6 +35,7 @@ function bookInputFromGoogleHit(
     coverUrl: string | null;
     googleBooksId: string | null;
     year: number | null;
+    description?: string | null;
   },
   isbn: string,
 ): BookInput {
@@ -42,6 +44,7 @@ function bookInputFromGoogleHit(
     authors: hit.authors,
     openLibraryKey: null,
     coverUrl: hit.coverUrl,
+    description: plainBookDescription(hit.description),
     // Prefer the validated scanned barcode over provider identifiers
     // (Google may surface OTHER / non-barcode values).
     isbn,
@@ -125,6 +128,7 @@ export async function scanBookAction(value: string, sessionId: string) {
   try {
     const result = await saveBookEdition(edition, sessionId);
     revalidatePath("/library");
+    revalidatePath(`/library/${result.book.id}`);
     return { ok: true as const, ...result };
   } catch {
     return {
@@ -154,6 +158,7 @@ export async function addEditionAction(editionKey: string) {
       };
     const result = await saveBookEdition(edition);
     revalidatePath("/library");
+    revalidatePath(`/library/${result.book.id}`);
     return { ok: true as const, ...result };
   } catch {
     return { ok: false as const, error: "Could not add edition. Please retry." };
@@ -165,6 +170,7 @@ export async function removeBooksAction(ids: string[], scanId?: string) {
   if (scanId) z.string().uuid().parse(scanId);
   const results = await removeLibraryBooks(ids, scanId);
   revalidatePath("/library");
+  for (const id of ids) revalidatePath(`/library/${id}`);
   return results;
 }
 export async function correctFormatAction(id: string, format: string) {
@@ -173,4 +179,5 @@ export async function correctFormatAction(id: string, format: string) {
   const label = z.string().trim().min(1).max(80).parse(format);
   await correctBookFormat(id, label);
   revalidatePath("/library");
+  revalidatePath(`/library/${id}`);
 }

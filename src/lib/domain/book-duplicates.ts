@@ -7,6 +7,7 @@ export interface BookInput {
   openLibraryKey: string | null;
   coverUrl: string | null;
   isbn: string | null;
+  description?: string | null;
 }
 
 export type DuplicateKeep = "existing" | "incoming";
@@ -17,8 +18,7 @@ export interface TitleDuplicateCandidate {
 }
 
 export type AddBookResolution =
-  | { action: "keep_both" }
-  | { action: "replace"; existingBookId: string };
+  { action: "keep_both" } | { action: "replace"; existingBookId: string };
 
 export type AddBookResult =
   | { status: "added"; book: Book }
@@ -63,6 +63,7 @@ export function mergeKeptBook(kept: BookInput, other: BookInput): BookInput {
     openLibraryKey: kept.openLibraryKey ?? other.openLibraryKey,
     coverUrl: kept.coverUrl ?? other.coverUrl,
     isbn: kept.isbn ?? other.isbn,
+    description: kept.description?.trim() || other.description?.trim() || null,
   };
 }
 
@@ -119,18 +120,26 @@ export function isLikelySameBook(
 }
 
 /** Higher means richer metadata; a cover thumbnail outweighs everything else. */
-export function bookMetadataScore(book: Pick<BookInput, "coverUrl" | "isbn" | "authors" | "openLibraryKey">): number {
+export function bookMetadataScore(
+  book: Pick<
+    BookInput,
+    "coverUrl" | "isbn" | "authors" | "openLibraryKey" | "description"
+  >,
+): number {
   let score = 0;
-  if (book.coverUrl) score += 8;
+  if (book.coverUrl) score += 9;
   if (bookCodeKey(book.isbn)) score += 4;
   if (book.authors.length > 0) score += 2;
+  if (book.description?.trim()) score += 1;
   if (book.openLibraryKey) score += 1;
   return score;
 }
 
 /** Ties keep the book already in the library. */
 export function recommendKeep(existing: Book, incoming: BookInput): DuplicateKeep {
-  return bookMetadataScore(incoming) > bookMetadataScore(existing) ? "incoming" : "existing";
+  return bookMetadataScore(incoming) > bookMetadataScore(existing)
+    ? "incoming"
+    : "existing";
 }
 
 export function checkForDuplicate(library: Book[], incoming: BookInput): DuplicateCheck {

@@ -90,6 +90,12 @@ it("retains the scanned ISBN and exact edition metadata rather than an arbitrary
         works: [{ key: "/works/OL1W" }],
       }),
     })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        description: { type: "/type/text", value: "<p>A quiet goodnight.</p>" },
+      }),
+    })
     .mockResolvedValueOnce({ ok: true, json: async () => ({ name: "Author" }) });
   const result = await lookupIsbn("0060775858", { fetchImpl });
   expect(result).toMatchObject({
@@ -98,6 +104,7 @@ it("retains the scanned ISBN and exact edition metadata rather than an arbitrary
     format: "Paperback",
     authors: ["Author"],
     openLibraryKey: "/works/OL1W",
+    description: "A quiet goodnight.",
   });
   expect(fetchImpl.mock.calls[0][0]).toBe(
     "https://openlibrary.org/isbn/9780060775858.json",

@@ -26,6 +26,7 @@ it("requires a concrete edition before adding a work search result", async () =>
       coverUrl: null,
       isbn: null,
       year: null,
+      description: null,
     },
   ]);
   render(createElement(BookSearch, { collectionKeys: [] }));
@@ -93,6 +94,7 @@ it("debounces typing and ignores stale responses after clearing the input", asyn
           coverUrl: null,
           isbn: null,
           year: null,
+          description: null,
         },
       ]);
     });

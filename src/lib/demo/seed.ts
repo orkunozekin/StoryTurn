@@ -1,8 +1,5 @@
 import { applyReassignment } from "@/lib/domain/corrections";
-import {
-  pickRandomBookIds,
-  SESSION_BOOK_PICK_COUNT,
-} from "@/lib/domain/session-books";
+import { pickRandomBookIds, SESSION_BOOK_PICK_COUNT } from "@/lib/domain/session-books";
 import { generateSessionsFromSchedule, sessionDateKey } from "@/lib/domain/sessions";
 import type { AppState } from "@/lib/types";
 import { addDays, formatDateOnly } from "@/lib/domain/rotation";
@@ -114,8 +111,10 @@ export function createSeedState(now = new Date()): AppState {
         title: "Goodnight Moon",
         authors: ["Margaret Wise Brown"],
         openLibraryKey: "/works/OL45804W",
-        coverUrl: "https://covers.openlibrary.org/b/id/8739161-M.jpg",
+        coverUrl: "https://covers.openlibrary.org/b/isbn/9780060775858-L.jpg",
         isbn: "9780060775858",
+        description:
+          "A little bunny says goodnight to the moon, the room, and everything in it.",
         createdAt: `${startDate}T12:00:00.000Z`,
       },
       {
@@ -124,8 +123,10 @@ export function createSeedState(now = new Date()): AppState {
         title: "The Very Hungry Caterpillar",
         authors: ["Eric Carle"],
         openLibraryKey: "/works/OL45804X",
-        coverUrl: "https://covers.openlibrary.org/b/id/8231496-M.jpg",
+        coverUrl: "https://covers.openlibrary.org/b/isbn/9780399226908-L.jpg",
         isbn: "9780399226908",
+        description:
+          "A very hungry caterpillar eats through the week and turns into a butterfly.",
         createdAt: `${startDate}T12:00:00.000Z`,
       },
       {
@@ -134,8 +135,10 @@ export function createSeedState(now = new Date()): AppState {
         title: "Where the Wild Things Are",
         authors: ["Maurice Sendak"],
         openLibraryKey: "/works/OL45804Y",
-        coverUrl: "https://covers.openlibrary.org/b/id/12005829-M.jpg",
+        coverUrl: "https://covers.openlibrary.org/b/isbn/9780060254926-L.jpg",
         isbn: "9780060254926",
+        description:
+          "After making mischief, Max sails to the wild things and finds his supper waiting at home.",
         createdAt: `${startDate}T12:00:00.000Z`,
       },
     ],
@@ -195,9 +198,7 @@ export function createSeedState(now = new Date()): AppState {
   const libraryIds = state.books.map((b) => b.id);
 
   // Log a few past books
-  const pastCompleted = state.sessions
-    .filter((s) => s.status === "completed")
-    .slice(-5);
+  const pastCompleted = state.sessions.filter((s) => s.status === "completed").slice(-5);
   const bookIds = ["book_moon", "book_hungry", "book_where", "book_moon", "book_hungry"];
   pastCompleted.forEach((session, i) => {
     state.sessionBooks.push({

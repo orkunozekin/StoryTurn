@@ -188,6 +188,7 @@ describe("scanBookAction Google ISBN", () => {
         coverUrl: "https://example.com/cover.jpg",
         isbn: "U_OTHER_123",
         year: 2018,
+        description: "<p>Farm friends wake up.</p>",
       },
     ]);
     mocks.saveBookEdition.mockResolvedValue({
@@ -204,6 +205,7 @@ describe("scanBookAction Google ISBN", () => {
         title: "Good Morning, Farm Friends",
         isbn: VALID_ISBN13,
         editionKey: "google:vol1",
+        description: "Farm friends wake up.",
       }),
       SESSION_ID,
     );

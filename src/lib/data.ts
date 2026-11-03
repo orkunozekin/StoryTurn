@@ -38,6 +38,10 @@ export async function getLibrary() {
   return isDemoMode() ? demo.getLibrary() : live.getLibrary();
 }
 
+export async function getBook(id: string) {
+  return isDemoMode() ? demo.getBook(id) : live.getBook(id);
+}
+
 export async function getDashboard(filter: DashboardFilter) {
   return isDemoMode() ? demo.getDashboard(filter) : live.getDashboard(filter);
 }

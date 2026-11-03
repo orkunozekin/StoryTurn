@@ -104,6 +104,7 @@ export function mapBook(row: Row): Book {
     openLibraryKey: strOrNull(row, "open_library_key"),
     coverUrl: strOrNull(row, "cover_url"),
     isbn: strOrNull(row, "isbn"),
+    description: strOrNull(row, "description"),
     editionKey: strOrNull(row, "edition_key"),
     format: strOrNull(row, "format"),
     publisher: strOrNull(row, "publisher"),

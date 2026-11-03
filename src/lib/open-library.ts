@@ -1,3 +1,5 @@
+import { plainBookDescription } from "@/lib/book-description";
+
 export type BookSource = "openlibrary" | "google";
 
 export interface OpenLibraryDoc {
@@ -20,6 +22,7 @@ export interface BookSearchResult {
   coverUrl: string | null;
   isbn: string | null;
   year: number | null;
+  description: string | null;
 }
 
 interface OpenLibraryBooksApiEntry {
@@ -48,6 +51,7 @@ export function mapOpenLibraryDoc(doc: OpenLibraryDoc): BookSearchResult {
       : null,
     isbn: doc.isbn?.[0] ?? null,
     year: doc.first_publish_year ?? null,
+    description: null,
   };
 }
 
@@ -72,13 +76,10 @@ export function mapOpenLibraryBooksApiEntry(
     authors: (entry.authors ?? [])
       .map((a) => a.name?.trim())
       .filter((name): name is string => Boolean(name)),
-    coverUrl:
-      entry.cover?.medium ?? entry.cover?.large ?? entry.cover?.small ?? null,
-    isbn:
-      entry.identifiers?.isbn_13?.[0] ??
-      entry.identifiers?.isbn_10?.[0] ??
-      isbn,
+    coverUrl: entry.cover?.medium ?? entry.cover?.large ?? entry.cover?.small ?? null,
+    isbn: entry.identifiers?.isbn_13?.[0] ?? entry.identifiers?.isbn_10?.[0] ?? isbn,
     year: parsePublishYear(entry.publish_date),
+    description: null,
   };
 }
 
@@ -97,10 +98,7 @@ export async function searchOpenLibrary(
   const url = new URL("https://openlibrary.org/search.json");
   url.searchParams.set("q", q);
   url.searchParams.set("limit", String(limit));
-  url.searchParams.set(
-    "fields",
-    "key,title,author_name,cover_i,isbn,first_publish_year",
-  );
+  url.searchParams.set("fields", "key,title,author_name,cover_i,isbn,first_publish_year");
 
   await options?.beforeRequest?.();
   const response = await fetchImpl(url.toString(), {
@@ -133,6 +131,7 @@ export interface OpenLibraryEdition {
   physical_format?: string;
   publishers?: string[];
   publish_date?: string;
+  description?: unknown;
 }
 export type EditionResult = BookSearchResult &
   import("@/lib/book-edition").EditionMetadata & { editionKey: string };
@@ -170,11 +169,15 @@ export async function mapEdition(
   if (!/^\/books\/OL\d+M$/.test(edition.key) || typeof edition.title !== "string")
     throw new Error("Book metadata is incomplete. Try title search.");
   let authors = edition.authors ?? [];
+  let description = plainBookDescription(edition.description);
   const workKey = edition.works?.find((w) => /^\/works\/OL\d+W$/.test(w.key))?.key ?? "";
-  if (!authors.length && workKey) {
+  if (workKey && (authors.length === 0 || !description)) {
     const work = await libraryJson(`${workKey}.json`, options);
-    authors =
-      work?.authors?.map((entry: { author: { key: string } }) => entry.author) ?? [];
+    if (authors.length === 0) {
+      authors =
+        work?.authors?.map((entry: { author: { key: string } }) => entry.author) ?? [];
+    }
+    description = description ?? plainBookDescription(work?.description);
   }
   const names: string[] = [];
   for (const author of authors.slice(0, 4)) {
@@ -205,6 +208,7 @@ export async function mapEdition(
     format: edition.physical_format?.trim() || null,
     publisher: edition.publishers?.join(", ") || null,
     editionYear: edition.publish_date || null,
+    description,
   };
 }
 export async function lookupIsbn(

@@ -1,3 +1,4 @@
+import { plainBookDescription } from "@/lib/book-description";
 import type { BookSearchResult } from "@/lib/open-library";
 
 export interface GoogleBooksVolume {
@@ -6,6 +7,7 @@ export interface GoogleBooksVolume {
     title?: string;
     authors?: string[];
     publishedDate?: string;
+    description?: string;
     imageLinks?: {
       thumbnail?: string;
       smallThumbnail?: string;
@@ -42,12 +44,9 @@ function parseYear(publishedDate?: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
-export function mapGoogleBooksVolume(
-  volume: GoogleBooksVolume,
-): BookSearchResult {
+export function mapGoogleBooksVolume(volume: GoogleBooksVolume): BookSearchResult {
   const info = volume.volumeInfo ?? {};
-  const thumb =
-    info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? null;
+  const thumb = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? null;
   return {
     sourceId: `google:${volume.id}`,
     source: "google",
@@ -58,6 +57,7 @@ export function mapGoogleBooksVolume(
     coverUrl: thumb ? thumb.replace(/^http:/, "https:") : null,
     isbn: pickIsbn(info.industryIdentifiers),
     year: parseYear(info.publishedDate),
+    description: plainBookDescription(info.description),
   };
 }
 

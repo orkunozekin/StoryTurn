@@ -7,7 +7,7 @@ export type EditionMetadata = {
 };
 export type BookInput = Pick<
   Book,
-  "title" | "authors" | "openLibraryKey" | "coverUrl" | "isbn"
+  "title" | "authors" | "openLibraryKey" | "coverUrl" | "isbn" | "description"
 > &
   EditionMetadata;
 export type SaveBookResult = { book: Book; created: boolean };

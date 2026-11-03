@@ -8,6 +8,30 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+function StatTitle({
+  book,
+}: {
+  book: { title: string; edition?: string; bookId: string | null };
+}) {
+  return (
+    <span>
+      {book.bookId ? (
+        <Link
+          href={`/library/${book.bookId}`}
+          className="font-medium text-primary underline-offset-2 hover:underline"
+        >
+          {book.title}
+        </Link>
+      ) : (
+        <span>{book.title}</span>
+      )}
+      {book.edition && (
+        <span className="block text-xs text-muted-foreground">{book.edition}</span>
+      )}
+    </span>
+  );
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -113,14 +137,7 @@ export default async function DashboardPage({
                   key={`${book.bookId}-${book.title}`}
                   className="flex items-center justify-between gap-3"
                 >
-                  <span>
-                    {book.title}
-                    {book.edition && (
-                      <span className="block text-xs text-muted-foreground">
-                        {book.edition}
-                      </span>
-                    )}
-                  </span>
+                  <StatTitle book={book} />
                   <Badge variant="secondary">{book.readCount}×</Badge>
                 </li>
               ))}
@@ -137,14 +154,7 @@ export default async function DashboardPage({
                   key={`${book.bookId}-${book.title}-all`}
                   className="flex items-center justify-between gap-3"
                 >
-                  <span>
-                    {book.title}
-                    {book.edition && (
-                      <span className="block text-xs text-muted-foreground">
-                        {book.edition}
-                      </span>
-                    )}
-                  </span>
+                  <StatTitle book={book} />
                   <Badge variant="secondary">{book.readCount}×</Badge>
                 </li>
               ))}

@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { plainBookDescription } from "@/lib/book-description";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { acceptPendingInviteForCurrentUser } from "@/lib/accept-pending-invite";
@@ -31,10 +32,7 @@ import {
 import * as demo from "@/lib/demo/store";
 import { demoLogin, demoLogout } from "@/lib/demo/store";
 import type { AddBookResolution, AddBookResult } from "@/lib/domain/book-duplicates";
-import {
-  clearDemoSessionCookie,
-  setDemoSessionCookie,
-} from "@/lib/demo-session";
+import { clearDemoSessionCookie, setDemoSessionCookie } from "@/lib/demo-session";
 import { searchBooks } from "@/lib/book-search";
 import { parseChildRelation } from "@/lib/domain/relations";
 import { clearPendingInvite, setPendingInvite } from "@/lib/pending-invite";
@@ -226,8 +224,7 @@ export async function addKidAction(formData: FormData) {
 }
 
 export async function createInviteAction(formData?: FormData) {
-  const role =
-    formData && String(formData.get("role")) === "owner" ? "owner" : "reader";
+  const role = formData && String(formData.get("role")) === "owner" ? "owner" : "reader";
   const code = await createInviteCode(role);
   revalidatePath("/family");
   return { code };
@@ -304,11 +301,21 @@ export async function addBookAction(formData: FormData): Promise<AddBookResult> 
       openLibraryKey: String(formData.get("openLibraryKey") || "") || null,
       coverUrl: String(formData.get("coverUrl") || "") || null,
       isbn: String(formData.get("isbn") || "") || null,
+      description: plainBookDescription(formData.get("description")),
     },
     parseAddBookResolution(formData),
   );
-  if (result.status === "added" || result.status === "replaced") {
+  if (
+    result.status === "added" ||
+    result.status === "replaced" ||
+    result.status === "already_in_library"
+  ) {
     revalidatePath("/library");
+    revalidatePath(
+      `/library/${result.status === "already_in_library" ? result.existing.id : result.book.id}`,
+    );
+  }
+  if (result.status === "added" || result.status === "replaced") {
     revalidatePath("/schedule");
     revalidatePath("/");
   }
