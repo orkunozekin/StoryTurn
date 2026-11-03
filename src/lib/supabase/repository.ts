@@ -1,6 +1,10 @@
-import type { SessionStatus } from "@/lib/types";
 import { librarySearchTerm, type LibraryPage } from "@/lib/domain/library-page";
-import { sessionPageBounds } from "@/lib/domain/session-presentation";
+import {
+  sessionDayStart,
+  sessionPageBounds,
+  type SessionFilterCounts,
+  type SessionListFilter,
+} from "@/lib/domain/session-presentation";
 import { assertScheduleSettings } from "@/lib/domain/schedule-settings";
 import { dateInTimezone } from "@/lib/domain/calendar-date";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
@@ -954,35 +958,74 @@ export async function deleteKid(kidId: string): Promise<void> {
 
 export async function getFamilySessionPage(
   requestedPage?: string | string[],
-  status?: SessionStatus,
+  filter: SessionListFilter = "all",
+  today: string = new Date().toISOString().slice(0, 10),
 ) {
   const { supabase, member } = requireMember(await loadContext());
-  const countQuery = supabase
-    .from("reading_sessions")
-    .select("id", { count: "exact", head: true })
-    .eq("family_id", member.familyId);
-  const { count, error } = await (status ? countQuery.eq("status", status) : countQuery);
-  assertNoError(error, "Could not count sessions");
+  const dayStart = sessionDayStart(today);
+  const familyRows = (head: boolean) =>
+    supabase
+      .from("reading_sessions")
+      .select(head ? "id" : "*", head ? { count: "exact", head: true } : undefined)
+      .eq("family_id", member.familyId);
+  // Each filter is a query builder; head=true counts, head=false loads rows.
+  const segments = {
+    upcoming: (head: boolean) =>
+      familyRows(head).eq("status", "scheduled").gte("scheduled_for", dayStart),
+    past: (head: boolean) =>
+      familyRows(head).or(`status.neq.scheduled,scheduled_for.lt.${dayStart}`),
+    completed: (head: boolean) => familyRows(head).eq("status", "completed"),
+    canceled: (head: boolean) => familyRows(head).eq("status", "cancelled"),
+  };
+  const countOf = async (
+    query: PromiseLike<{ count: number | null; error: { message: string } | null }>,
+  ) => {
+    const { count, error } = await query;
+    assertNoError(error, "Could not count sessions");
+    return count ?? 0;
+  };
+  const [all, upcoming, past, completed, canceled] = await Promise.all([
+    countOf(familyRows(true)),
+    countOf(segments.upcoming(true)),
+    countOf(segments.past(true)),
+    countOf(segments.completed(true)),
+    countOf(segments.canceled(true)),
+  ]);
+  const counts: SessionFilterCounts = { all, upcoming, completed, canceled };
   const { page, pageCount, total, from, to } = sessionPageBounds(
-    count ?? 0,
+    counts[filter],
     requestedPage,
   );
-  const sessionsQuery = supabase
-    .from("reading_sessions")
-    .select("*")
-    .eq("family_id", member.familyId);
-  const filteredQuery = status ? sessionsQuery.eq("status", status) : sessionsQuery;
-  const items =
-    total === 0
-      ? []
-      : await rows(
-          filteredQuery
-            .order("scheduled_for", { ascending: false })
-            .order("id", { ascending: false })
-            .range(from, to),
-          mapSession,
-          "Could not load session page",
-        );
+  const load = (
+    segment: keyof typeof segments,
+    ascending: boolean,
+    start: number,
+    end: number,
+  ) =>
+    rows(
+      segments[segment](false)
+        .order("scheduled_for", { ascending })
+        .order("id", { ascending })
+        .range(start, end),
+      mapSession,
+      "Could not load session page",
+    );
+  let items: ReadingSession[] = [];
+  if (total > 0) {
+    if (filter === "upcoming") items = await load("upcoming", true, from, to);
+    else if (filter === "completed") items = await load("completed", false, from, to);
+    else if (filter === "canceled") items = await load("canceled", false, from, to);
+    else {
+      // "All": upcoming nights (soonest first), then everything else (latest first).
+      const [head, tail] = await Promise.all([
+        from < upcoming ? load("upcoming", true, from, Math.min(to, upcoming - 1)) : [],
+        to >= upcoming && past > 0
+          ? load("past", false, Math.max(0, from - upcoming), to - upcoming)
+          : [],
+      ]);
+      items = [...head, ...tail];
+    }
+  }
   const assignments =
     items.length === 0
       ? []
@@ -998,7 +1041,7 @@ export async function getFamilySessionPage(
           mapAssignment,
           "Could not load session readers",
         );
-  return { items, assignments, page, pageCount, total };
+  return { items, assignments, page, pageCount, total, counts };
 }
 
 export async function getLibraryPage(

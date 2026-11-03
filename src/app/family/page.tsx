@@ -188,7 +188,7 @@ export default async function FamilyPage({
                           size="icon"
                           aria-label={`Remove child ${kid.name}`}
                           title="Remove child"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          className="text-status-cancelled hover:bg-destructive/10 hover:text-status-cancelled"
                         >
                           <Trash2 aria-hidden="true" />
                         </Button>

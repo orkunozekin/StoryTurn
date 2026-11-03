@@ -78,6 +78,35 @@ function client() {
           filters.push((r) => r[key] === value);
           return builder;
         },
+        neq: (key: string, value: unknown) => {
+          filters.push((r) => r[key] !== value);
+          return builder;
+        },
+        gte: (key: string, value: string) => {
+          filters.push((r) => String(r[key]) >= value);
+          return builder;
+        },
+        lt: (key: string, value: string) => {
+          filters.push((r) => String(r[key]) < value);
+          return builder;
+        },
+        // Minimal PostgREST `or` parser: "col.op.value,col.op.value" with eq/neq/lt/gte.
+        or: (expression: string) => {
+          const clauses = expression.split(",").map((clause) => {
+            const [key, op, ...rest] = clause.split(".");
+            const value = rest.join(".");
+            return (r: Row) => {
+              const cell = String(r[key]);
+              if (op === "eq") return cell === value;
+              if (op === "neq") return cell !== value;
+              if (op === "lt") return cell < value;
+              if (op === "gte") return cell >= value;
+              throw new Error(`Unsupported or() operator ${op}`);
+            };
+          });
+          filters.push((r) => clauses.some((matches) => matches(r)));
+          return builder;
+        },
         ilike: (key: string, pattern: string) => {
           const term = pattern
             .slice(1, -1)
@@ -270,11 +299,10 @@ it("fetches session pages beyond the API row limit with the exact family count",
   expect(page.items).toHaveLength(5);
   expect(page.items.at(-1)?.id).toBe("night-0000");
   expect(page.assignments.map((a) => a.sessionId)).toEqual(["night-0000"]);
-  expect(fixture.ranges).toContainEqual({
-    table: "reading_sessions",
-    start: 1000,
-    end: 1009,
-  });
+  // All 1005 nights are "scheduled"; 728 are on or after today (Oct 4 in LA, the
+  // default "today" is UTC Oct 5), so page 101 reads the past segment at offset 1000 - 727.
+  const past = fixture.ranges.filter((r) => r.table === "reading_sessions");
+  expect(past.at(-1)?.end).toBe(past.at(-1)!.start + 9);
 });
 it("clamps oversized page requests using the database count and handles empty families", async () => {
   expect(await getFamilySessionPage("999")).toMatchObject({
@@ -426,11 +454,60 @@ it("filters both session count and rows by status within the current family", as
   expect(page.items).toHaveLength(8);
   expect(page.items.every((session) => session.status === "completed")).toBe(true);
   expect(page.items.at(-1)?.id).toBe("filtered-00");
-  expect(await getFamilySessionPage("99", "cancelled")).toMatchObject({
+  expect(await getFamilySessionPage("99", "canceled")).toMatchObject({
     items: [],
     assignments: [],
     total: 0,
     page: 1,
+  });
+});
+
+it("returns each filter's rows in a sensible order with counts", async () => {
+  const statuses = ["completed", "cancelled", "scheduled"] as const;
+  fixture.tables.reading_sessions = Array.from({ length: 30 }, (_, i) => {
+    const day = new Date(Date.UTC(2026, 8, 20 + i)).toISOString().slice(0, 10);
+    const status = day >= "2026-10-04" ? (i % 5 === 0 ? "cancelled" : "scheduled") : statuses[i % 3];
+    return {
+      id: `n-${String(i).padStart(2, "0")}`,
+      family_id: "family",
+      scheduled_for: `${day}T19:30:00+00:00`,
+      status,
+    };
+  });
+  const rowsFor = (status: string) =>
+    fixture.tables.reading_sessions.filter((r) => r.status === status);
+  const upcomingRows = rowsFor("scheduled").filter(
+    (r) => String(r.scheduled_for) >= "2026-10-04",
+  );
+  const day = (s: { scheduledFor: string }) => s.scheduledFor.slice(0, 10);
+
+  const upcoming = await getFamilySessionPage("1", "upcoming", "2026-10-04");
+  expect(upcoming.items.map(day)).toEqual(
+    upcomingRows.map((r) => String(r.scheduled_for).slice(0, 10)).sort().slice(0, 10),
+  );
+  expect(upcoming.items.map(day)[0]).toBe("2026-10-04"); // today leads
+  expect(upcoming.items.map(day)).not.toContain("2026-09-22"); // past unlogged night
+
+  const completed = await getFamilySessionPage("1", "completed", "2026-10-04");
+  expect(completed.items.every((s) => s.status === "completed")).toBe(true);
+  expect(completed.items.map(day)).toEqual([...completed.items.map(day)].sort().reverse());
+
+  const canceled = await getFamilySessionPage("1", "canceled", "2026-10-04");
+  expect(canceled.total).toBe(rowsFor("cancelled").length);
+  expect(canceled.items.every((s) => s.status === "cancelled")).toBe(true);
+
+  const all = [1, 2, 3].map((n) => getFamilySessionPage(String(n), "all", "2026-10-04"));
+  const items = (await Promise.all(all)).flatMap((p) => p.items);
+  expect(new Set(items.map((s) => s.id)).size).toBe(30);
+  const head = items.slice(0, upcomingRows.length).map(day);
+  const tail = items.slice(upcomingRows.length).map(day);
+  expect(head).toEqual([...head].sort());
+  expect(tail).toEqual([...tail].sort().reverse());
+  expect(upcoming.counts).toEqual({
+    all: 30,
+    upcoming: upcomingRows.length,
+    completed: rowsFor("completed").length,
+    canceled: rowsFor("cancelled").length,
   });
 });
 

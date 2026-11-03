@@ -49,7 +49,7 @@ export default async function HomePage() {
           {next ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-accent text-accent-foreground hover:bg-accent">
+                <Badge className="bg-primary text-primary-foreground hover:bg-primary">
                   Your next night
                 </Badge>
                 {corrected && <Badge variant="outline">Corrected record</Badge>}

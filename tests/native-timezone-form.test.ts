@@ -45,3 +45,39 @@ it("prevents saving a server timezone before browser detection", () => {
     "",
   );
 });
+
+it("celebrates only after a successful save and skips it for reduced motion", async () => {
+  const user = userEvent.setup();
+  const renderForm = (action: (data: FormData) => Promise<void>) =>
+    render(
+      createElement(
+        NativeTimezoneForm,
+        { action, celebrate: true, successMessage: "Schedule saved" },
+        createElement("button", { type: "submit" }, "Save schedule"),
+      ),
+    );
+  const matchMedia = vi.fn(() => ({ matches: false }) as MediaQueryList);
+  vi.stubGlobal("matchMedia", matchMedia);
+
+  renderForm(async () => {
+    throw new Error("Nope");
+  });
+  await user.click(screen.getByRole("button", { name: "Save schedule" }));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(document.querySelector('[data-testid="save-celebration"]')).toBeNull();
+  cleanup();
+
+  renderForm(async () => {});
+  await user.click(screen.getByRole("button", { name: "Save schedule" }));
+  await waitFor(() =>
+    expect(document.querySelectorAll(".save-celebration__piece").length).toBeGreaterThan(8),
+  );
+  cleanup();
+
+  matchMedia.mockReturnValue({ matches: true } as MediaQueryList);
+  renderForm(async () => {});
+  await user.click(screen.getByRole("button", { name: "Save schedule" }));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(document.querySelector('[data-testid="save-celebration"]')).toBeNull();
+  vi.unstubAllGlobals();
+});

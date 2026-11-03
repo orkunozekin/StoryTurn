@@ -1,4 +1,5 @@
 import { RotateCcw } from "lucide-react";
+import { ChoiceChip } from "@/components/ui/choice-chip";
 import { ConfirmationForm } from "@/components/confirmation-form";
 import { BackLink } from "@/components/back-link";
 import { FormSelect } from "@/components/form-select";
@@ -94,7 +95,7 @@ export default async function SessionPage({
               </ConfirmationForm>
             )}
             {corrected && (
-              <Badge className="bg-accent text-accent-foreground">Corrected</Badge>
+              <Badge className="bg-primary text-primary-foreground">Corrected</Badge>
             )}
           </div>
           <h1 className="font-display mt-3 text-3xl text-primary">
@@ -195,20 +196,16 @@ export default async function SessionPage({
 
           <div className="space-y-2">
             <Label>Assigned readers</Label>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {detail.readers.map((reader) => (
-                <label
+                <ChoiceChip
                   key={reader.id}
-                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+                  name="memberIds"
+                  value={reader.id}
+                  defaultChecked={currentIds.has(reader.id)}
                 >
-                  <input
-                    type="checkbox"
-                    name="memberIds"
-                    value={reader.id}
-                    defaultChecked={currentIds.has(reader.id)}
-                  />
                   {reader.displayName}
-                </label>
+                </ChoiceChip>
               ))}
             </div>
           </div>

@@ -1,0 +1,71 @@
+/* A short burst of tiny books, stars and pages rising from a save button. */
+.save-celebration {
+  position: absolute;
+  z-index: 60;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.save-celebration__piece {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  opacity: 0;
+  background: var(--piece-color);
+  will-change: transform, opacity;
+  animation: save-celebration-rise 900ms cubic-bezier(0.2, 0.7, 0.3, 1) var(--piece-delay)
+    forwards;
+}
+.save-celebration__piece[data-shape="book"] {
+  width: 9px;
+  height: 12px;
+  margin: -6px 0 0 -4.5px;
+  border-radius: 1.5px 2.5px 2.5px 1.5px;
+  box-shadow: inset 2px 0 0 rgb(0 0 0 / 0.22);
+}
+.save-celebration__piece[data-shape="page"] {
+  width: 8px;
+  height: 10px;
+  margin: -5px 0 0 -4px;
+  border-radius: 1px;
+}
+.save-celebration__piece[data-shape="star"] {
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 91%,
+    50% 70%,
+    21% 91%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+}
+@keyframes save-celebration-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg) scale(0.4);
+  }
+  15% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--piece-dx), var(--piece-dy)) rotate(var(--piece-rot))
+      scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .save-celebration {
+    display: none;
+  }
+}

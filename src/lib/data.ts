@@ -1,4 +1,4 @@
-import type { SessionStatus } from "@/lib/types";
+import type { SessionListFilter } from "@/lib/domain/session-presentation";
 import type { ChildRelation } from "@/lib/domain/relations";
 import type {
   AddBookResolution,
@@ -172,11 +172,12 @@ export async function deleteKid(id: string) {
 
 export async function getFamilySessionPage(
   requestedPage?: string | string[],
-  status?: SessionStatus,
+  filter?: SessionListFilter,
+  today?: string,
 ) {
   return isDemoMode()
-    ? demo.getFamilySessionPage(requestedPage, status)
-    : live.getFamilySessionPage(requestedPage, status);
+    ? demo.getFamilySessionPage(requestedPage, filter, today)
+    : live.getFamilySessionPage(requestedPage, filter, today);
 }
 
 export async function getLibraryPage(query: string, page = 1) {
