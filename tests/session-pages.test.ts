@@ -8,6 +8,9 @@ vi.mock("@/app/actions", () => ({
   shuffleUpcomingBooksAction: vi.fn(),
   cascadeInsertAction: vi.fn(),
   swapSessionsAction: vi.fn(),
+  requestToReadAction: vi.fn(),
+  withdrawReaderRequestAction: vi.fn(),
+  decideReaderRequestAction: vi.fn(),
 }));
 vi.mock("@/components/app-nav", () => ({ AppNav: () => null }));
 vi.mock("@/lib/data", () => ({
@@ -18,6 +21,7 @@ vi.mock("@/lib/data", () => ({
   getUpcomingBookCtaState: store.getUpcomingBookCtaState,
   listFamilyAssignments: store.listFamilyAssignments,
   listFamilySessions: store.listFamilySessions,
+  listReaderRequests: store.listReaderRequests,
   getHomeContext: store.getHomeContext,
 }));
 import SchedulePage from "@/app/schedule/page";

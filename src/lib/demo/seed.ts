@@ -160,6 +160,7 @@ export function createSeedState(now = new Date()): AppState {
     assignments: [],
     sessionBooks: [],
     corrections: [],
+    readerRequests: [],
     outboundEmails: [],
   };
 

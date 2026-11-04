@@ -34,7 +34,11 @@ import {
   getUpcomingBookCtaState,
   listFamilyAssignments,
   listFamilySessions,
+  listReaderRequests,
 } from "@/lib/data";
+import { AskToReadPanel, PendingRequestList } from "@/components/reader-requests";
+import { canRequestNight } from "@/lib/domain/reader-requests";
+import { myLatestRequest, pendingRequestViews } from "@/lib/reader-request-views";
 import {
   DEFAULT_FAMILY_TIMEZONE,
   formatDateOnlyInTimeZone,
@@ -105,11 +109,22 @@ export default async function SchedulePage({
   const sessions = pagination.items;
   const names = Object.fromEntries(admin.readers.map((r) => [r.id, r.displayName]));
   // Cascade/swap need the full upcoming set, not just the current page.
-  const [allSessions, allAssignments, bookCta] = await Promise.all([
+  const [allSessions, allAssignments, bookCta, requests] = await Promise.all([
     listFamilySessions(),
     listFamilyAssignments(),
     getUpcomingBookCtaState(),
+    listReaderRequests(),
   ]);
+  const pendingRequests = isOwner
+    ? pendingRequestViews({
+        requests,
+        sessions: allSessions,
+        assignments: allAssignments,
+        readers: admin.readers,
+        today,
+        timeZone,
+      })
+    : [];
   const futureScheduled = allSessions.filter((s) => isUpcomingNight(s, today));
 
   const readerLabel = (sessionId: string) =>
@@ -131,6 +146,8 @@ export default async function SchedulePage({
             invites automatically.
           </p>
         </section>
+
+        <PendingRequestList requests={pendingRequests} />
 
         {isOwner ? (
           <NativeTimezoneForm
@@ -222,6 +239,8 @@ export default async function SchedulePage({
         ) : (
           <p className="story-panel mt-6 rounded-2xl p-5 text-sm text-muted-foreground">
             Family owners manage the rotation. Your upcoming nights are listed below.
+            Want a night that isn&apos;t yours? Ask to read it and a parent will
+            approve or decline.
           </p>
         )}
 
@@ -403,6 +422,41 @@ export default async function SchedulePage({
                     {readerLabel(session.id)}
                   </span>
                 </Link>
+                {(() => {
+                  if (
+                    isOwner ||
+                    assignments.some(
+                      (a) =>
+                        a.sessionId === session.id &&
+                        a.memberId === member.id &&
+                        a.isCurrent,
+                    )
+                  )
+                    return null;
+                  const mine = myLatestRequest(requests, session.id, member.id);
+                  const canRequest = canRequestNight({
+                    member,
+                    session,
+                    assignments,
+                    requests,
+                    today,
+                  }).ok;
+                  if (!canRequest && mine?.status !== "pending") return null;
+                  return (
+                    <div className="mt-1 flex justify-end px-1">
+                      <AskToReadPanel
+                        compact
+                        sessionId={session.id}
+                        nightLabel={formatRelativeSessionWhen(session.scheduledFor, {
+                          today,
+                          timeZone,
+                        })}
+                        myRequest={mine}
+                        canRequest={canRequest}
+                      />
+                    </div>
+                  );
+                })()}
               </li>
             ))}
           </ul>

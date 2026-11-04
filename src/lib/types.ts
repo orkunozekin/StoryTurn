@@ -133,6 +133,26 @@ export interface ReadingSession {
   updatedAt: string;
 }
 
+export type SessionReaderRequestStatus =
+  | "pending"
+  | "approved"
+  | "declined"
+  | "withdrawn"
+  | "expired";
+
+/** A family member asking to read a specific upcoming night. */
+export interface SessionReaderRequest {
+  id: string;
+  sessionId: string;
+  familyId: string;
+  memberId: string;
+  note: string | null;
+  status: SessionReaderRequestStatus;
+  createdAt: string;
+  decidedAt: string | null;
+  decidedByMemberId: string | null;
+}
+
 export interface UserAccount {
   id: string;
   email: string;
@@ -153,6 +173,7 @@ export interface AppState {
   assignments: SessionAssignment[];
   sessionBooks: SessionBook[];
   corrections: SessionCorrection[];
+  readerRequests: SessionReaderRequest[];
   outboundEmails: OutboundEmail[];
 }
 

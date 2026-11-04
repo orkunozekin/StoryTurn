@@ -38,7 +38,11 @@ import {
   getCurrentUser,
   getFamilyAdmin,
   getSessionDetail,
+  listReaderRequests,
 } from "@/lib/data";
+import { AskToReadPanel, PendingRequestList } from "@/components/reader-requests";
+import { canRequestNight } from "@/lib/domain/reader-requests";
+import { myLatestRequest, pendingRequestViews } from "@/lib/reader-request-views";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default async function SessionPage({
@@ -56,6 +60,33 @@ export default async function SessionPage({
   if (!detail) redirect("/");
   const admin = await getFamilyAdmin();
   const timeZone = admin?.schedule?.timezone ?? DEFAULT_FAMILY_TIMEZONE;
+  const today = formatDateOnlyInTimeZone(new Date(), timeZone);
+  const requests = await listReaderRequests(id);
+  const isOwner = member.role === "owner";
+  const nightLabel = formatRelativeSessionWhen(detail.session.scheduledFor, {
+    today,
+    timeZone,
+  });
+  const myRequest = myLatestRequest(requests, id, member.id);
+  const canRequest =
+    !isOwner &&
+    canRequestNight({
+      member,
+      session: detail.session,
+      assignments: detail.assignments,
+      requests,
+      today,
+    }).ok;
+  const pendingForNight = isOwner
+    ? pendingRequestViews({
+        requests,
+        sessions: [detail.session],
+        assignments: detail.assignments,
+        readers: detail.readers,
+        today,
+        timeZone,
+      })
+    : [];
 
   const corrected = wasCorrected({
     assignments: detail.assignments,
@@ -63,7 +94,6 @@ export default async function SessionPage({
     sessionId: id,
   });
   const past = isPastSession(detail.session.scheduledFor);
-  const today = formatDateOnlyInTimeZone(new Date(), timeZone);
   const shownStatus = effectiveStatus(detail.session, today);
   const statusOptions = sessionStatusOptions(detail.session, today);
   const currentIds = new Set(
@@ -108,11 +138,7 @@ export default async function SessionPage({
               <Badge className="bg-primary text-primary-foreground">Corrected</Badge>
             )}
           </div>
-          <h1 className="font-display mt-3 text-3xl text-primary">
-            {formatRelativeSessionWhen(detail.session.scheduledFor, {
-              timeZone,
-            })}
-          </h1>
+          <h1 className="font-display mt-3 text-3xl text-primary">{nightLabel}</h1>
           <p className="mt-2 text-muted-foreground">
             Current reader:{" "}
             {currentReaderLabels({
@@ -136,6 +162,20 @@ export default async function SessionPage({
             </Alert>
           )}
         </section>
+
+        <PendingRequestList
+          requests={pendingForNight}
+          title="Requests for this night"
+          showNight={false}
+        />
+        {!currentIds.has(member.id) && (
+          <AskToReadPanel
+            sessionId={id}
+            nightLabel={nightLabel}
+            myRequest={myRequest}
+            canRequest={canRequest}
+          />
+        )}
 
         {detail.corrections.length > 0 && (
           <section className="mt-6 space-y-3">
