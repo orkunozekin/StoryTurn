@@ -23,7 +23,7 @@ vi.mock("@/lib/data", () => ({
   listFamilySessions: store.listFamilySessions,
   listReaderRequests: store.listReaderRequests,
 }));
-import SchedulePage from "@/app/schedule/page";
+import SchedulePage from "@/app/(app)/schedule/page";
 beforeEach(() => store.resetDemoStore());
 it("explains mixed logging instead of forcing one timing choice", async () => {
   const html = renderToStaticMarkup(

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { computeBookHistory } from "@/lib/domain/book-history";
 import { librarySearchTerm, type LibraryPage } from "@/lib/domain/library-page";
 import {
@@ -100,8 +101,19 @@ function userFromAuth(user: User): UserAccount {
   };
 }
 
+/**
+ * Every data helper starts from the signed-in user and their membership. Memoize
+ * that per server render so a page making several reads pays for one auth round
+ * trip, not one per helper. Outside a React render (server actions, tests),
+ * `cache` passes straight through.
+ */
+const loadRequestContext = cache(async () => loadContextFrom(await createClient()));
+
 async function loadContext(client?: SupabaseClient) {
-  const supabase = client ?? (await createClient());
+  return client ? loadContextFrom(client) : loadRequestContext();
+}
+
+async function loadContextFrom(supabase: SupabaseClient) {
   const {
     data: { user },
     error,

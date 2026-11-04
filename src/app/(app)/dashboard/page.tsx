@@ -1,7 +1,6 @@
 import { BackLink } from "@/components/back-link";
 export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
-import { SiteNav } from "@/components/site-nav";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentMember, getCurrentUser, getDashboard } from "@/lib/data";
 import Link from "next/link";
@@ -54,7 +53,6 @@ export default async function DashboardPage({
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <SiteNav displayName={member.displayName} />
       <main className="mx-auto w-full max-w-5xl px-4 py-8">
         <BackLink />
         <section className="animate-rise">

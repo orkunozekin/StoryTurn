@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as store from "@/lib/demo/store";
-import SessionPage from "@/app/sessions/[id]/page";
-import SchedulePage from "@/app/schedule/page";
+import SessionPage from "@/app/(app)/sessions/[id]/page";
+import SchedulePage from "@/app/(app)/schedule/page";
 
 vi.mock("@/components/app-nav", () => ({ AppNav: () => null }));
 vi.mock("@/components/site-nav", () => ({ SiteNav: () => null }));
@@ -72,9 +72,7 @@ it("hides the ask action from the night's reader and on past nights", async () =
     "Ask to read this night",
   );
   store.setDemoSessionUserId("user_nana");
-  const past = store
-    .getDemoState()
-    .sessions.find((s) => s.status === "completed")!;
+  const past = store.getDemoState().sessions.find((s) => s.status === "completed")!;
   expect(renderToStaticMarkup(await sessionPage(past.id))).not.toContain(
     "Ask to read this night",
   );

@@ -30,8 +30,8 @@ vi.mock("@/lib/data", () => ({
   listFamilySessions: store.listFamilySessions,
   listReaderRequests: store.listReaderRequests,
 }));
-import SchedulePage from "@/app/schedule/page";
-import FamilyPage from "@/app/family/page";
+import SchedulePage from "@/app/(app)/schedule/page";
+import FamilyPage from "@/app/(app)/family/page";
 beforeEach(() => store.resetDemoStore());
 it("offers parent schedule editing and deletion", async () => {
   const html = renderToStaticMarkup(

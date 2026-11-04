@@ -88,8 +88,8 @@ Given two distinct future scheduled session ids, exchange their current reader m
 | `src/lib/demo/store.ts` | Owner actions + seed fields |
 | `src/lib/demo/seed.ts` | Seed relations |
 | `src/app/actions.ts` | Server actions |
-| `src/app/schedule/page.tsx` | Cascade / swap UI |
-| `src/app/family/page.tsx` | Show + edit relations |
+| `src/app/(app)/schedule/page.tsx` | Cascade / swap UI |
+| `src/app/(app)/family/page.tsx` | Show + edit relations |
 | `src/app/onboarding/page.tsx` | Relation on create/join |
 | `supabase/migrations/003_member_relation.sql` | Column + check |
 | `tests/*.test.ts` | Domain + store coverage |

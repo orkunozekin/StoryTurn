@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { SiteNav } from "@/components/site-nav";
 import { firstName } from "@/lib/first-name";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,7 +33,6 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <SiteNav displayName={home.member.displayName} />
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
         <section className="animate-rise max-w-2xl">
           <p className="font-display text-2xl text-primary md:text-3xl">

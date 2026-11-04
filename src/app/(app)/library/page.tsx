@@ -1,7 +1,6 @@
 import { BackLink } from "@/components/back-link";
 export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
-import { SiteNav } from "@/components/site-nav";
 import { BookScanner } from "@/components/book-scanner";
 import { BookShelf } from "@/components/book-shelf";
 import { BookSearch } from "@/components/book-search";
@@ -16,7 +15,6 @@ export default async function LibraryPage() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <SiteNav displayName={member.displayName} />
       <main className="mx-auto w-full max-w-5xl px-4 py-8">
         <BackLink hiddenWithTabs />
         <section className="animate-rise">

@@ -72,7 +72,7 @@ function FormatCorrection({ book }: { book: Book }) {
               required
               placeholder="Format, e.g. Paperback"
             />
-            <Button type="submit" size="sm" variant="outline" disabled={pending}>
+            <Button type="submit" size="sm" variant="outline" loading={pending}>
               {pending ? "Saving…" : "Set format"}
             </Button>
             {error && <p role="alert">{error}</p>}
@@ -220,7 +220,7 @@ export function LibraryCollection({ books }: { books: Book[] }) {
           </Button>
           <Button
             variant="destructive"
-            disabled={pending}
+            loading={pending}
             onClick={async () => {
               setPending(true);
               try {

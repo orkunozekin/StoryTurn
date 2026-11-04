@@ -30,6 +30,7 @@ export function ConfirmationForm({
 }) {
   const form = useRef<HTMLFormElement>(null);
   const approved = useRef(false);
+  const submitter = useRef<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -50,6 +51,7 @@ export function ConfirmationForm({
           )
             return;
           event.preventDefault();
+          submitter.current = event.nativeEvent.submitter;
           setOpen(true);
         }}
       >
@@ -69,7 +71,10 @@ export function ConfirmationForm({
               onClick={() => {
                 approved.current = true;
                 setOpen(false);
-                form.current?.requestSubmit();
+                // Resubmit through the same button so its value is sent and it shows the spinner.
+                const button = submitter.current;
+                submitter.current = null;
+                form.current?.requestSubmit(button?.isConnected ? button : undefined);
               }}
             >
               {confirmLabel}

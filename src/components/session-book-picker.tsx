@@ -6,6 +6,7 @@ import { BookOpen, Check, Plus, X } from "lucide-react";
 import { searchLibraryBooksAction } from "@/app/library-picker-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -153,6 +154,19 @@ export function SessionBookPicker({
             >
               Try again
             </Button>
+          )}
+          {loading && (
+            <div aria-hidden="true" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {[0, 1, 2, 3, 4, 5].map((tile) => (
+                <div
+                  key={tile}
+                  className="flex flex-col items-center gap-3 rounded-xl border-2 border-border p-3"
+                >
+                  <Skeleton className="h-36 w-full rounded-lg" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              ))}
+            </div>
           )}
           {!loading && !error && result && (
             <>

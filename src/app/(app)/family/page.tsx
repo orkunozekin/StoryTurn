@@ -11,7 +11,6 @@ import {
 } from "@/app/actions";
 import { Trash2 } from "lucide-react";
 import { ConfirmationForm } from "@/components/confirmation-form";
-import { SiteNav } from "@/components/site-nav";
 import { CopyInviteLinkButton } from "@/components/copy-invite-link-button";
 import { CreateInviteForm } from "@/components/create-invite-form";
 import { RelationSelect } from "@/components/relation-select";
@@ -41,7 +40,6 @@ export default async function FamilyPage({
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <SiteNav displayName={member.displayName} />
       <main className="mx-auto w-full max-w-5xl px-4 py-8">
         <BackLink hiddenWithTabs />
         <section className="animate-rise">
@@ -269,7 +267,8 @@ export default async function FamilyPage({
 
         <section className="story-panel reveal mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-5 lg:hidden">
           <p className="text-sm text-muted-foreground">
-            Signed in as <span className="font-bold text-foreground">{member.displayName}</span>
+            Signed in as{" "}
+            <span className="font-bold text-foreground">{member.displayName}</span>
           </p>
           <ConfirmationForm
             title="Sign out?"

@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as store from "@/lib/demo/store";
-import SessionPage from "@/app/sessions/[id]/page";
+import SessionPage from "@/app/(app)/sessions/[id]/page";
 vi.mock("@/components/app-nav", () => ({ AppNav: () => null }));
 vi.mock("@/components/site-nav", () => ({ SiteNav: () => null }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));

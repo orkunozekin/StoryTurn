@@ -24,8 +24,8 @@ vi.mock("@/lib/data", () => ({
   listReaderRequests: store.listReaderRequests,
   getHomeContext: store.getHomeContext,
 }));
-import SchedulePage from "@/app/schedule/page";
-import HomePage from "@/app/page";
+import SchedulePage from "@/app/(app)/schedule/page";
+import HomePage from "@/app/(app)/page";
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-05T02:00:00Z"));
