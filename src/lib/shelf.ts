@@ -75,8 +75,8 @@ export const shelfPage = <T>(
   pageSize = SHELF_PAGE_SIZE,
 ) => items.slice((page - 1) * pageSize, page * pageSize);
 
-/** Books lean this many degrees on the tablet and desktop shelf. */
-export const SHELF_LEAN_DEG = 15;
+/** Books lean this many degrees on the tablet and desktop shelf; negative tips the tops left. */
+export const SHELF_LEAN_DEG = -15;
 
 export const matchesQuery = (book: Pick<Book, "title" | "authors">, query: string) => {
   const q = query.trim().toLowerCase();

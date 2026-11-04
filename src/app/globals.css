@@ -557,7 +557,9 @@ body:has([data-app-tab-bar]) {
 @media (min-width: 768px) {
   .shelf {
     --spine-flat: 0;
-    --lean: 15deg;
+    /* Tops tip left so top-to-bottom titles slope toward left-to-right reading.
+       Keep in step with SHELF_LEAN_DEG in src/lib/shelf.ts. */
+    --lean: -15deg;
     /* One shelf row: tall enough for the longest spine plus its hover lift. */
     --shelf-row: 260px;
     --plank: 16px;
@@ -565,7 +567,7 @@ body:has([data-app-tab-bar]) {
     flex-wrap: wrap;
     align-items: flex-end;
     align-content: flex-start;
-    padding: 0 3rem 0 1rem;
+    padding: 0 1rem 0 3rem;
     border: 10px solid var(--shelf-wood-edge);
     border-top-width: 0;
     border-radius: 6px;
@@ -625,7 +627,7 @@ body:has([data-app-tab-bar]) {
       inset 0 2px 0 rgba(255, 255, 255, 0.14),
       inset 0 -3px 0 rgba(0, 0, 0, 0.2),
       3px 1px 4px rgba(0, 0, 0, 0.3);
-    transform-origin: 100% 100%;
+    transform-origin: 0 100%;
     transform: rotate(var(--lean));
   }
   .shelf-spine[data-trim="bands"]::before {
