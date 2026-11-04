@@ -82,14 +82,22 @@ export const computeBookHistory = ({
     .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))
     .map(toNight);
 
+  // Tally by member id: two family members can share a display name.
   const counts = new Map<string, number>();
   for (const night of history) {
-    for (const reader of night.readers) counts.set(reader, (counts.get(reader) ?? 0) + 1);
+    const ids = new Set(
+      assignments
+        .filter((a) => a.sessionId === night.sessionId && a.isCurrent)
+        .map((a) => a.memberId),
+    );
+    for (const memberId of ids) {
+      if (nameOf.has(memberId)) counts.set(memberId, (counts.get(memberId) ?? 0) + 1);
+    }
   }
   const most = Math.max(0, ...counts.values());
   const leaders = [...counts.entries()]
     .filter(([, count]) => count === most && most > 0)
-    .map(([name]) => name)
+    .map(([memberId]) => nameOf.get(memberId) ?? "")
     .sort((a, b) => a.localeCompare(b));
 
   return {

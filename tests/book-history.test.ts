@@ -132,3 +132,20 @@ describe("computeBookHistory", () => {
     );
   });
 });
+
+describe("computeBookHistory with shared names", () => {
+  it("counts readers by member, not by display name", () => {
+    const history = computeBookHistory({
+      ...input,
+      members: [
+        { id: "alex", displayName: "Alex" },
+        { id: "alex2", displayName: "Alex" },
+      ],
+      sessions: [session("s1", "2026-10-20", "completed")],
+      assignments: [assign("s1", "alex"), assign("s1", "alex2")],
+      sessionBooks: [link("s1", "gruffalo")],
+    });
+    expect(history.timesRead).toBe(1);
+    expect(history.topReader).toEqual({ names: ["Alex", "Alex"], count: 1 });
+  });
+});
