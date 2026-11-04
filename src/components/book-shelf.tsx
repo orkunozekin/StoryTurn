@@ -4,12 +4,18 @@ import { BookOpen, LayoutList, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { LibraryCollection } from "@/components/library-collection";
+import { Button } from "@/components/ui/button";
+import { sessionPageNumbers } from "@/lib/domain/session-presentation";
 import {
   SHELF_LEAN_DEG,
+  SHELF_PAGE_SIZE,
   formatKey,
   matchesQuery,
   setShelfOrigin,
   shelfFormats,
+  shelfPage,
+  shelfPageCount,
+  spineAuthor,
   spineLook,
 } from "@/lib/shelf";
 import type { Book } from "@/lib/types";
@@ -37,6 +43,7 @@ const recordOrigin = (event: React.MouseEvent<HTMLAnchorElement>, bookId: string
 
 function Spine({ book, dimmed }: { book: Book; dimmed: boolean }) {
   const look = spineLook(book);
+  const author = spineAuthor(book.authors);
   return (
     <li className="shelf-slot">
       <Link
@@ -48,18 +55,89 @@ function Spine({ book, dimmed }: { book: Book; dimmed: boolean }) {
         tabIndex={dimmed ? -1 : undefined}
         onClick={(event) => recordOrigin(event, book.id)}
         className={cn("shelf-spine", dimmed && "is-dimmed")}
+        data-trim={look.trim}
         style={
           {
             "--spine-color": look.color,
             "--spine-length": `${look.length}px`,
+            "--spine-thickness": `${look.thickness}px`,
             "--spine-x": `${look.offsetX}px`,
             "--spine-tilt": `${look.tilt}deg`,
           } as React.CSSProperties
         }
       >
         <span className="shelf-spine-title">{book.title}</span>
+        {author && (
+          <span className="shelf-spine-author" aria-hidden="true">
+            {author}
+          </span>
+        )}
       </Link>
     </li>
+  );
+}
+
+function ShelfPagination({
+  page,
+  pageCount,
+  total,
+  onPage,
+}: {
+  page: number;
+  pageCount: number;
+  total: number;
+  onPage: (page: number) => void;
+}) {
+  if (pageCount <= 1) return null;
+  const first = (page - 1) * SHELF_PAGE_SIZE + 1;
+  const last = Math.min(page * SHELF_PAGE_SIZE, total);
+  return (
+    <nav aria-label="Shelf pages" className="flex flex-wrap items-center gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={page === 1}
+        onClick={() => onPage(page - 1)}
+      >
+        Previous
+      </Button>
+      {sessionPageNumbers(page, pageCount).map((n, index) =>
+        n === "ellipsis" ? (
+          <span
+            key={`gap-${index}`}
+            className="px-1 text-muted-foreground"
+            aria-hidden="true"
+          >
+            …
+          </span>
+        ) : (
+          <Button
+            key={n}
+            type="button"
+            variant={n === page ? "default" : "outline"}
+            size="sm"
+            aria-label={`Page ${n}`}
+            aria-current={n === page ? "page" : undefined}
+            onClick={() => onPage(n)}
+          >
+            {n}
+          </Button>
+        ),
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={page === pageCount}
+        onClick={() => onPage(page + 1)}
+      >
+        Next
+      </Button>
+      <span className="text-sm text-muted-foreground">
+        {first}–{last} of {total} books
+      </span>
+    </nav>
   );
 }
 
@@ -76,7 +154,30 @@ export function BookShelf({ books }: { books: Book[] }) {
     matchesQuery(book, query) &&
     (activeFormat === ALL ||
       (book.format != null && formatKey(book.format) === activeFormat));
-  const matchCount = books.filter(matches).length;
+  const matched = books.filter(matches);
+  const matchCount = matched.length;
+
+  // The shelf keeps every book in place and fades non-matches, so it pages through all
+  // books; the list only shows matches, so it pages through those.
+  const paged = view === "shelf" ? books : matched;
+  const pageCount = shelfPageCount(paged.length);
+  const filterKey = `${view}|${query.trim().toLowerCase()}|${activeFormat}`;
+  const [page, setPage] = useState(1);
+  const [pageFilterKey, setPageFilterKey] = useState(filterKey);
+  if (pageFilterKey !== filterKey) {
+    // A new search or filter jumps to the first page that has a match on it.
+    setPageFilterKey(filterKey);
+    const firstMatch = paged.findIndex(matches);
+    setPage(firstMatch < 0 ? 1 : Math.floor(firstMatch / SHELF_PAGE_SIZE) + 1);
+  }
+  const currentPage = Math.min(page, pageCount);
+  const pageBooks = shelfPage(paged, currentPage);
+  const changePage = (next: number) => {
+    setPage(next);
+    document
+      .getElementById("your-shelf")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   if (books.length === 0) {
     return (
@@ -159,17 +260,24 @@ export function BookShelf({ books }: { books: Book[] }) {
 
       {view === "shelf" ? (
         <ul className="shelf" aria-label="Books on your shelf">
-          {books.map((book) => (
+          {pageBooks.map((book) => (
             <Spine key={book.id} book={book} dimmed={!matches(book)} />
           ))}
         </ul>
       ) : (
-        /* Remount on filter change so selections never include books that are hidden. */
+        /* Remount on filter or page change so selections never include books that are hidden. */
         <LibraryCollection
-          key={`${query.trim()}|${activeFormat}`}
-          books={books.filter(matches)}
+          key={`${query.trim()}|${activeFormat}|${currentPage}`}
+          books={pageBooks}
         />
       )}
+
+      <ShelfPagination
+        page={currentPage}
+        pageCount={pageCount}
+        total={paged.length}
+        onPage={changePage}
+      />
     </div>
   );
 }
