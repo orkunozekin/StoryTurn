@@ -4,6 +4,7 @@ import {
   addBookFromSearch,
   cascadeInsertReader,
   completeAllPastSessions,
+  getDashboard,
   completePastSessions,
   ensureAllUpcomingSessions,
   saveSchedule,
@@ -709,4 +710,63 @@ describe("completing past sessions", () => {
     );
     expect(fixture.updates.length).toBeGreaterThan(1);
   });
+});
+
+it("uses the family's local date for dashboard stats, not UTC", async () => {
+  // 02:00 UTC on Oct 5 is still Oct 4 (19:00) in Los Angeles: tonight isn't read yet.
+  fixture.tables.reading_sessions = [
+    {
+      id: "tonight",
+      family_id: "family",
+      scheduled_for: "2026-10-04T19:30",
+      status: "scheduled",
+    },
+    {
+      id: "yesterday",
+      family_id: "family",
+      scheduled_for: "2026-10-03T19:30",
+      status: "scheduled",
+    },
+  ];
+  fixture.tables.session_assignments = [];
+  fixture.tables.session_books = [
+    { id: "sb1", session_id: "tonight", book_id: null, title_freeform: "Tonight's book" },
+    {
+      id: "sb2",
+      session_id: "yesterday",
+      book_id: null,
+      title_freeform: "Last night's book",
+    },
+  ];
+  const dash = await getDashboard({ type: "family" });
+  expect(dash?.stats.sessionsCompleted).toBe(1);
+  expect(dash?.stats.allTime.map((b) => b.title)).toEqual(["Last night's book"]);
+});
+
+it("reads every active schedule before completing nights, so each family keeps its timezone", async () => {
+  // 08:00 UTC Oct 5: Oct 5 in Los Angeles (the default) but still Oct 4 in Honolulu.
+  vi.setSystemTime(new Date("2026-10-05T08:00:00Z"));
+  const template = fixture.tables.schedules[0];
+  fixture.tables.schedules = Array.from({ length: 1000 }, (_, i) => ({
+    ...template,
+    id: `schedule-${String(i).padStart(4, "0")}`,
+    family_id: `family-${i}`,
+  }));
+  // Sorts after the first 1000 by id, so a single capped query would miss it.
+  fixture.tables.schedules.push({
+    ...template,
+    id: "schedule-zzzz",
+    family_id: "honolulu",
+    timezone: "Pacific/Honolulu",
+  });
+  fixture.tables.reading_sessions = [
+    {
+      id: "hnl-tonight",
+      family_id: "honolulu",
+      scheduled_for: "2026-10-04T19:30",
+      status: "scheduled",
+    },
+  ];
+  expect(await completeAllPastSessions()).toBe(0);
+  expect(fixture.tables.reading_sessions[0]?.status).toBe("scheduled");
 });

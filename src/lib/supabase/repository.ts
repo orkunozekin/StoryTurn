@@ -541,13 +541,22 @@ export async function getLibrary(): Promise<Book[]> {
 
 export async function getDashboard(filter: DashboardFilter) {
   const { supabase, member } = requireMember(await loadContext());
-  const [sessions, readers, books] = await Promise.all([
+  const [sessions, readers, books, familySchedules] = await Promise.all([
     familySessions(supabase, member.familyId),
     familyReaders(supabase, member.familyId),
     rows(
       supabase.from("books").select("*").eq("family_id", member.familyId),
       mapBook,
       "Could not load books",
+    ),
+    rows(
+      supabase
+        .from("schedules")
+        .select("*")
+        .eq("family_id", member.familyId)
+        .eq("active", true),
+      mapSchedule,
+      "Could not load schedule",
     ),
   ]);
   const sessionIds = sessions.map((session) => session.id);
@@ -567,6 +576,8 @@ export async function getDashboard(filter: DashboardFilter) {
       sessionBooks: sessions.length === 0 ? [] : sessionBooks,
       books,
       filter,
+      // The family's local date, so tonight isn't counted as read after UTC midnight.
+      nowIso: familyToday(member.familyId, familySchedules, new Date()),
     }),
     readers,
     member,
@@ -734,8 +745,15 @@ async function insertGeneratedSessions(
 
 export async function ensureAllUpcomingSessions(daysAhead = 14): Promise<number> {
   const supabase = createServiceClient();
-  const schedules = await rows(
-    supabase.from("schedules").select("*").eq("active", true),
+  // Every active schedule, past the 1000-row cap, so no family misses its new nights.
+  const schedules = await allRows(
+    (from, to) =>
+      supabase
+        .from("schedules")
+        .select("*")
+        .eq("active", true)
+        .order("id")
+        .range(from, to),
     mapSchedule,
     "Could not load schedules",
   );
@@ -757,8 +775,16 @@ async function completePastSessionsWith(
   familyIds: string[] | null,
   now: Date,
 ): Promise<number> {
-  const schedules = await rows(
-    supabase.from("schedules").select("*").eq("active", true),
+  // Every active schedule, past the 1000-row cap: a family missed here would fall back
+  // to the default timezone and could have tonight completed a day early.
+  const schedules = await allRows(
+    (from, to) =>
+      supabase
+        .from("schedules")
+        .select("*")
+        .eq("active", true)
+        .order("id")
+        .range(from, to),
     mapSchedule,
     "Could not load schedules",
   );

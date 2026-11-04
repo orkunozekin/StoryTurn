@@ -1004,6 +1004,8 @@ export function getDashboard(filter: DashboardFilter) {
       sessionBooks: state().sessionBooks,
       books: state().books.filter((b) => b.familyId === familyId),
       filter,
+      // The family's local date, so tonight isn't counted as read after UTC midnight.
+      nowIso: formatDateOnlyInTimeZone(new Date(), familyTimezone(familyId)),
     }),
     readers: state().members.filter((m) => m.familyId === familyId),
     member,
