@@ -5,19 +5,21 @@ name: DB migrations
 on:
   # Runs on every push to main so the "Migrations deployed" check exists on every main
   # commit (Vercel Deployment Checks waits for it). The deploy job itself only runs when
-  # supabase/migrations/** changed, or when started by hand.
+  # supabase/migrations/** changed since the last successful run, or when started by hand.
   push:
     branches: [main]
   workflow_dispatch:
 
-# Never run two deploys at once. Queue instead of cancelling: a cancelled push could leave
-# a later commit's migrations unapplied.
+# Never run two deploys at once. A running deploy is never cancelled. GitHub keeps at most
+# one run waiting and replaces it with a newer one; that is safe because the newer run
+# compares against the last *successful* run (see the `changes` job), not the previous push.
 concurrency:
   group: db-migrations-production
   cancel-in-progress: false
 
 permissions:
   contents: read
+  actions: read # to find the last successful run of this workflow
 
 env:
   SUPABASE_CLI_VERSION: 2.122.1
@@ -32,24 +34,33 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+      # Compare against the commit of the last fully successful run of this workflow on main,
+      # not the previous push. A successful run means production was current at that commit
+      # (it deployed, or nothing had changed since the run before it). So migrations from a
+      # push whose deploy failed or was cancelled are still picked up by the next run.
       - id: diff
         env:
           EVENT: ${{ github.event_name }}
-          BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           if [ "$EVENT" = "workflow_dispatch" ]; then
             echo "Manual run: deploying."
             echo "migrations=true" >> "$GITHUB_OUTPUT"
-          elif [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            echo "Previous commit unknown (new branch or force push): deploying to be safe."
+            exit 0
+          fi
+          base=$(gh api "repos/$REPO/actions/workflows/db-migrations.yml/runs?branch=main&status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // ""') || base=""
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "No earlier successful run found: deploying to be safe."
             echo "migrations=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$BEFORE" "$GITHUB_SHA" -- supabase/migrations; then
-            echo "No changes under supabase/migrations: nothing to deploy."
+          elif git diff --quiet "$base" "$GITHUB_SHA" -- supabase/migrations; then
+            echo "No migration changes since the last successful run ($base): nothing to deploy."
             echo "migrations=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Changed migrations:"
-            git diff --name-status "$BEFORE" "$GITHUB_SHA" -- supabase/migrations
+            echo "Migration changes since the last successful run ($base):"
+            git diff --name-status "$base" "$GITHUB_SHA" -- supabase/migrations
             echo "migrations=true" >> "$GITHUB_OUTPUT"
           fi
 
