@@ -1,9 +1,8 @@
 "use client";
-import { Check, Pencil } from "lucide-react";
+import { Check, Info, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { correctFormatAction, removeBooksAction } from "@/app/book-actions";
-import { editionLabel } from "@/lib/book-edition";
 import type { Book } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +12,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+/** Publisher and year, e.g. "Puffin · 2003". The barcode number is left off the card. */
+const publishing = (book: Book) =>
+  [book.publisher, book.editionYear].filter(Boolean).join(" · ");
+
+/** Format, publisher and year, so screen readers can tell editions apart. */
+const editionSummary = (book: Book) =>
+  [book.format, book.publisher, book.editionYear].filter(Boolean).join(" · ");
+
 function FormatCorrection({ book }: { book: Book }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState(book.format ?? "");
@@ -120,7 +127,7 @@ export function LibraryCollection({ books }: { books: Book[] }) {
               <input
                 type="checkbox"
                 className="peer sr-only"
-                aria-label={`Select ${book.title}${editionLabel(book) ? ` (${editionLabel(book)})` : ""}`}
+                aria-label={`Select ${book.title}${editionSummary(book) ? ` (${editionSummary(book)})` : ""}`}
                 checked={selected.includes(book.id)}
                 onChange={(e) =>
                   setSelected((ids) =>
@@ -153,13 +160,36 @@ export function LibraryCollection({ books }: { books: Book[] }) {
                 />
               )}
               <div className="min-w-0 flex-1 break-words">
-                <p className="font-medium text-primary">{book.title}</p>
-                <p>{book.authors.join(", ") || "Unknown author"}</p>
-                {editionLabel(book) && (
-                  <p className="text-sm text-muted-foreground">{editionLabel(book)}</p>
+                <p className="font-display text-lg leading-snug text-foreground">
+                  {book.title}
+                </p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {book.authors.length ? (
+                    <>
+                      <span className="sr-only">by </span>
+                      {book.authors.join(", ")}
+                    </>
+                  ) : (
+                    <span className="italic">Unknown author</span>
+                  )}
+                </p>
+                {(book.format || publishing(book)) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {book.format && (
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-bold text-secondary-foreground">
+                        {book.format}
+                      </span>
+                    )}
+                    {publishing(book) && (
+                      <span className="text-xs text-muted-foreground">
+                        {publishing(book)}
+                      </span>
+                    )}
+                  </div>
                 )}
                 {!book.editionKey && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="mt-2 flex items-center gap-1 text-xs italic text-muted-foreground">
+                    <Info className="size-3.5 shrink-0" aria-hidden="true" />
                     Legacy entry: edition unverified
                   </p>
                 )}

@@ -117,13 +117,35 @@ it("adds concrete editions separately and keeps failed saves retryable", async (
 
 it("omits empty metadata and empty parentheses from collection labels", () => {
   const { container } = render(createElement(LibraryCollection, { books: [books[0]] }));
-  expect(
-    screen.getByRole("checkbox", { name: "Select First" }),
-  ).toBeTruthy();
+  expect(screen.getByRole("checkbox", { name: "Select First" })).toBeTruthy();
   expect(screen.getByRole("link", { name: /First/ }).getAttribute("href")).toBe(
     "/library/one",
   );
   expect(
     [...container.querySelectorAll("p")].every((line) => !!line.textContent?.trim()),
   ).toBe(true);
+});
+
+it("shows format, publisher and year on a card but never the barcode number", () => {
+  render(
+    createElement(LibraryCollection, {
+      books: [
+        {
+          ...books[0],
+          authors: ["Julia Donaldson"],
+          isbn: "9780142403877",
+          editionKey: "/books/OL9M",
+          format: "Paperback",
+          publisher: "Puffin",
+          editionYear: "2003",
+        },
+      ],
+    }),
+  );
+  expect(screen.getByText("Paperback")).toBeTruthy();
+  expect(screen.getByText("Puffin · 2003")).toBeTruthy();
+  expect(screen.queryByText(/9780142403877/)).toBeNull();
+  expect(
+    screen.getByRole("checkbox", { name: "Select First (Paperback · Puffin · 2003)" }),
+  ).toBeTruthy();
 });

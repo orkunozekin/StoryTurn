@@ -5,7 +5,8 @@ import { plainBookDescription } from "@/lib/book-description";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { acceptPendingInviteForCurrentUser } from "@/lib/accept-pending-invite";
-import { appUrl, isDemoMode } from "@/lib/config";
+import { isDemoMode } from "@/lib/config";
+import { requestOrigin } from "@/lib/request-origin";
 import {
   addBookFromSearch,
   addKid,
@@ -113,7 +114,7 @@ export async function signupAction(formData: FormData) {
     email,
     password,
     options: {
-      emailRedirectTo: `${appUrl()}/auth/callback`,
+      emailRedirectTo: `${await requestOrigin()}/auth/callback`,
       data: { display_name: displayName },
     },
   });
@@ -131,7 +132,7 @@ export async function googleLoginAction() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${appUrl()}/auth/callback` },
+    options: { redirectTo: `${await requestOrigin()}/auth/callback` },
   });
   if (error || !data.url) {
     authErrorRedirect("/login", error?.message ?? "Google sign-in failed");
@@ -151,7 +152,7 @@ export async function resetPasswordAction(formData: FormData) {
   }
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${appUrl()}/auth/callback?next=/reset-password/update`,
+    redirectTo: `${await requestOrigin()}/auth/callback?next=/reset-password/update`,
   });
   if (error) authErrorRedirect("/reset-password", error.message);
   redirect("/reset-password?sent=1");
