@@ -68,6 +68,7 @@ See [`.env.example`](.env.example).
 3. Set the Supabase, Plunk, and QStash keys in `.env.local`, then set `FORCE_DEMO_MODE=0` to use the live database.
 4. Configure QStash to `POST /api/cron/generate-sessions` daily (or call with `x-cron-secret: $CRON_SECRET` locally).
 5. Deploy on Vercel. Production uses `https://www.storyturn.app` (`storyturn.app` redirects to `www`). Set `NEXT_PUBLIC_APP_URL` to that URL and `FORCE_DEMO_MODE=0`. Auth callbacks use `${NEXT_PUBLIC_APP_URL}/auth/callback`, which must be allowed in the Supabase redirect list.
+6. Preview deployments: `appUrl()` uses the preview's own branch URL when `VERCEL_ENV` is `preview`, so sign-in returns to the preview. Allow `https://*-orkun-ozekins-projects-44d25be5.vercel.app/**` in Supabase (Authentication → URL Configuration → Redirect URLs), and give Vercel's Preview environment the Supabase keys with `FORCE_DEMO_MODE=0`. Leave the keys out (or set `FORCE_DEMO_MODE=1`) to run previews in demo mode instead.
 
 ## CI / merge requirements
 

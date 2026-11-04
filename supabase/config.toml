@@ -164,6 +164,8 @@ additional_redirect_urls = [
   "https://www.storyturn.app/**",
   "https://storyturn.app/**",
   "http://localhost:3456/**",
+  # Vercel preview deployments (branch and per-commit URLs).
+  "https://*-orkun-ozekins-projects-44d25be5.vercel.app/**",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
