@@ -122,6 +122,6 @@ it("puts pending requests at the top of the schedule for parents with approve an
   expect(ownerView).toMatch(/aria-label="Approve Nana for [^"]+"/);
   expect(ownerView).toMatch(/aria-label="Decline Nana for [^"]+"/);
   expect(ownerView.indexOf("Requests to read")).toBeLessThan(
-    ownerView.indexOf("Edit rotation"),
+    ownerView.indexOf("Your rotation"),
   );
 });
