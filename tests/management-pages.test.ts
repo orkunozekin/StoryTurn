@@ -16,8 +16,10 @@ vi.mock("@/app/actions", () => ({
   requestToReadAction: vi.fn(),
   withdrawReaderRequestAction: vi.fn(),
   decideReaderRequestAction: vi.fn(),
+  logoutAction: vi.fn(),
 }));
 vi.mock("@/components/app-nav", () => ({ AppNav: () => null }));
+vi.mock("@/components/site-nav", () => ({ SiteNav: () => null }));
 vi.mock("@/lib/data", () => ({
   getCurrentUser: store.getCurrentUser,
   getCurrentMember: store.getCurrentMember,

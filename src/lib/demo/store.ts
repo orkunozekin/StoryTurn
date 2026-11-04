@@ -1,6 +1,10 @@
-import type { SessionStatus } from "@/lib/types";
+import { computeBookHistory } from "@/lib/domain/book-history";
 import { paginateLibrary } from "@/lib/domain/library-page";
-import { paginateSessions } from "@/lib/domain/session-presentation";
+import {
+  filterSessionsForList,
+  paginateSessions,
+  type SessionListFilter,
+} from "@/lib/domain/session-presentation";
 import {
   assertScheduleSettings,
   selectRandomBooks,
@@ -1015,6 +1019,21 @@ export function getBook(id: string) {
   );
 }
 
+export function getBookHistory(bookId: string, today: string) {
+  const member = getCurrentMember();
+  if (!member) return null;
+  const familyId = member.familyId;
+  return computeBookHistory({
+    bookId,
+    sessions: state().sessions.filter((s) => s.familyId === familyId),
+    assignments: state().assignments,
+    sessionBooks: state().sessionBooks,
+    books: state().books.filter((b) => b.familyId === familyId),
+    members: state().members.filter((m) => m.familyId === familyId),
+    today,
+  });
+}
+
 export function getFamilyAdmin() {
   const member = getCurrentMember();
   if (!member) return null;
@@ -1126,12 +1145,11 @@ export function deleteKid(kidId: string): void {
 
 export function getFamilySessionPage(
   requestedPage?: string | string[],
-  status?: SessionStatus,
+  filter: SessionListFilter = "all",
+  today: string = new Date().toISOString().slice(0, 10),
 ) {
-  const pagination = paginateSessions(
-    listFamilySessions().filter((session) => !status || session.status === status),
-    requestedPage,
-  );
+  const { items, counts } = filterSessionsForList(listFamilySessions(), filter, today);
+  const pagination = { ...paginateSessions(items, requestedPage), counts };
   const ids = new Set(pagination.items.map((s) => s.id));
   const assignments = state().assignments.filter(
     (a) => ids.has(a.sessionId) && a.isCurrent,

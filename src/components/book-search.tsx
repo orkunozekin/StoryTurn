@@ -84,7 +84,7 @@ function DuplicateOption({
   return (
     <div
       className={`flex flex-1 flex-col gap-2 rounded-xl border p-3 ${
-        recommended ? "border-primary/60 bg-primary/5" : "border-border/80"
+        recommended ? "border-primary/60 bg-primary/5" : "border-border"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -242,7 +242,7 @@ export function BookSearch({ collectionKeys }: { collectionKeys: string[] }) {
         {results.map((book) => (
           <li
             key={book.sourceId}
-            className="grid grid-cols-[3rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-xl border border-border/80 bg-card/70 p-3 sm:grid-cols-[3rem_minmax(0,1fr)_auto]"
+            className="grid grid-cols-[3rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-xl border border-border bg-card/70 p-3 sm:grid-cols-[3rem_minmax(0,1fr)_auto]"
           >
             <div className="contents">
               <BookCover coverUrl={book.coverUrl} label="No cover" />

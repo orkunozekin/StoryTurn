@@ -12,10 +12,12 @@ import {
 import { ConfirmationForm } from "@/components/confirmation-form";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { logoutAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
+import { firstName } from "@/lib/first-name";
 
 const links: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/", label: "Tonight", icon: Moon },
@@ -38,8 +40,18 @@ const subscribeHydration = () => () => {};
 const clientSnapshot = () => true;
 const serverSnapshot = () => false;
 
-export function AppNav({ displayName }: { displayName: string }) {
+export function AppNav({
+  displayName,
+  className = "",
+}: {
+  displayName: string;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
+  const shortName = firstName(displayName);
+  const pathname = usePathname() ?? "";
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
   const menuId = useId();
   const toggleRef = useRef<HTMLButtonElement>(null);
   const hydrated = useSyncExternalStore(
@@ -60,7 +72,7 @@ export function AppNav({ displayName }: { displayName: string }) {
 
   return (
     <header
-      className="border-b border-border/70 bg-[color-mix(in_oklab,var(--card)_85%,transparent)] backdrop-blur-md"
+      className={`sticky top-0 z-40 ${className} border-b border-border/70 bg-[color-mix(in_oklab,var(--card)_85%,transparent)] backdrop-blur-md`}
       onKeyDown={(event) => {
         if (event.key === "Escape" && open) {
           setOpen(false);
@@ -81,7 +93,8 @@ export function AppNav({ displayName }: { displayName: string }) {
               <Link
                 key={link.href}
                 href={link.href}
-                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-base font-semibold text-foreground transition hover:bg-secondary hover:text-foreground"
+                aria-current={isActive(link.href) ? "page" : undefined}
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-base font-semibold text-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-[current=page]:bg-secondary aria-[current=page]:text-primary"
               >
                 <NavLinkLabel icon={link.icon} label={link.label} />
               </Link>
@@ -94,7 +107,7 @@ export function AppNav({ displayName }: { displayName: string }) {
             title={displayName}
           >
             <UserRound className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{displayName}</span>
+            <span className="truncate">{shortName}</span>
           </span>
           <ConfirmationForm
             title="Sign out?"
@@ -143,14 +156,15 @@ export function AppNav({ displayName }: { displayName: string }) {
           >
             <span className="mb-1 flex items-center gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground">
               <UserRound className="size-4 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 break-words">{displayName}</span>
+              <span className="min-w-0 break-words">{shortName}</span>
             </span>
             {links.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2 rounded-lg px-3 py-3 text-base font-semibold text-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                aria-current={isActive(link.href) ? "page" : undefined}
+                className="aria-[current=page]:bg-secondary flex items-center gap-2 rounded-lg px-3 py-3 text-base font-semibold text-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <NavLinkLabel icon={link.icon} label={link.label} />
               </Link>

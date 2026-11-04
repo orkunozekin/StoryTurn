@@ -1,4 +1,5 @@
 import { RotateCcw } from "lucide-react";
+import { ChoiceChip } from "@/components/ui/choice-chip";
 import { ConfirmationForm } from "@/components/confirmation-form";
 import { BackLink } from "@/components/back-link";
 import { FormSelect } from "@/components/form-select";
@@ -9,7 +10,7 @@ import {
   shuffleSessionBooksAction,
   updateSessionAction,
 } from "@/app/actions";
-import { AppNav } from "@/components/app-nav";
+import { SiteNav } from "@/components/site-nav";
 import { CancelSessionForm } from "@/components/cancel-session-form";
 import { SessionBookPicker } from "@/components/session-book-picker";
 import { ToastForm } from "@/components/toast-form";
@@ -101,8 +102,8 @@ export default async function SessionPage({
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <AppNav displayName={member.displayName} />
-      <main className="mx-auto w-full max-w-3xl px-4 pb-8 pt-3">
+      <SiteNav displayName={member.displayName} />
+      <main className="mx-auto w-full max-w-3xl px-4 py-8">
         <BackLink compact />
         <section className="animate-rise">
           <div className="flex flex-wrap items-center gap-2">
@@ -131,7 +132,7 @@ export default async function SessionPage({
               </ConfirmationForm>
             )}
             {corrected && (
-              <Badge className="bg-accent text-accent-foreground">Corrected</Badge>
+              <Badge className="bg-primary text-primary-foreground">Corrected</Badge>
             )}
           </div>
           <h1 className="font-display mt-3 text-3xl text-primary">{nightLabel}</h1>
@@ -242,20 +243,16 @@ export default async function SessionPage({
 
           <div className="space-y-2">
             <Label>Assigned readers</Label>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {detail.readers.map((reader) => (
-                <label
+                <ChoiceChip
                   key={reader.id}
-                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+                  name="memberIds"
+                  value={reader.id}
+                  defaultChecked={currentIds.has(reader.id)}
                 >
-                  <input
-                    type="checkbox"
-                    name="memberIds"
-                    value={reader.id}
-                    defaultChecked={currentIds.has(reader.id)}
-                  />
                   {reader.displayName}
-                </label>
+                </ChoiceChip>
               ))}
             </div>
           </div>

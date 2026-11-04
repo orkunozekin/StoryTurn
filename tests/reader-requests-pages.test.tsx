@@ -8,6 +8,7 @@ import SessionPage from "@/app/sessions/[id]/page";
 import SchedulePage from "@/app/schedule/page";
 
 vi.mock("@/components/app-nav", () => ({ AppNav: () => null }));
+vi.mock("@/components/site-nav", () => ({ SiteNav: () => null }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn(), unstable_rethrow: vi.fn() }));
 vi.mock("@/lib/session-mail", () => ({
@@ -15,16 +16,12 @@ vi.mock("@/lib/session-mail", () => ({
 }));
 
 /** A future night Jordan reads, so Nana can ask for it. */
-function jordanNight(latest = false) {
+function jordanNight() {
   const state = store.getDemoState();
   const today = new Date().toISOString().slice(0, 10);
   return state.sessions
     .filter((s) => s.status === "scheduled" && s.scheduledFor.slice(0, 10) > today)
-    .sort((a, b) =>
-      latest
-        ? b.scheduledFor.localeCompare(a.scheduledFor)
-        : a.scheduledFor.localeCompare(b.scheduledFor),
-    )
+    .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))
     .find((s) =>
       state.assignments.some(
         (a) => a.sessionId === s.id && a.isCurrent && a.memberId === "mem_jordan",
@@ -107,8 +104,8 @@ it("shows parents the pending request on the night and approves it", async () =>
 });
 
 it("puts pending requests at the top of the schedule for parents with approve and decline", async () => {
-  // The schedule list is newest first, so use a night on the first page.
-  const night = jordanNight(true);
+  // The schedule lists upcoming nights first, earliest first.
+  const night = jordanNight();
   store.setDemoSessionUserId("user_nana");
   store.requestToReadNight(night.id);
   const readerView = renderToStaticMarkup(

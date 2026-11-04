@@ -1,5 +1,5 @@
 "use client";
-import { Pencil } from "lucide-react";
+import { Check, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { correctFormatAction, removeBooksAction } from "@/app/book-actions";
@@ -112,23 +112,37 @@ export function LibraryCollection({ books }: { books: Book[] }) {
         {books.map((book) => (
           <li
             key={book.id}
-            className="story-panel flex items-start gap-3 rounded-2xl px-4 py-3"
+            className="story-panel group/row relative flex items-start gap-3 rounded-2xl border-2 border-input px-4 py-3 transition-[background-color,border-color] duration-150 hover:border-ring/60 has-[:checked]:border-primary has-[:checked]:bg-primary/12 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring"
           >
-            <input
-              type="checkbox"
-              aria-label={`Select ${book.title}${editionLabel(book) ? ` (${editionLabel(book)})` : ""}`}
-              checked={selected.includes(book.id)}
-              onChange={(e) =>
-                setSelected((ids) =>
-                  e.target.checked
-                    ? [...ids, book.id].slice(0, 100)
-                    : ids.filter((id) => id !== book.id),
-                )
-              }
-            />
+            {/* The label stretches over the whole row so any click outside the link or
+                format button toggles selection, without nesting interactive elements. */}
+            <label className="absolute inset-0 cursor-pointer rounded-2xl">
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                aria-label={`Select ${book.title}${editionLabel(book) ? ` (${editionLabel(book)})` : ""}`}
+                checked={selected.includes(book.id)}
+                onChange={(e) =>
+                  setSelected((ids) =>
+                    e.target.checked
+                      ? [...ids, book.id].slice(0, 100)
+                      : ids.filter((id) => id !== book.id),
+                  )
+                }
+              />
+            </label>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none relative mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-input transition-colors group-has-[:checked]/row:border-primary group-has-[:checked]/row:bg-primary group-has-[:checked]/row:text-primary-foreground"
+            >
+              <Check
+                className="size-3 scale-50 opacity-0 transition-[opacity,transform] duration-150 group-has-[:checked]/row:scale-100 group-has-[:checked]/row:opacity-100"
+                strokeWidth={3}
+              />
+            </span>
             <Link
               href={`/library/${book.id}`}
-              className="flex min-w-0 flex-1 items-start gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="relative flex min-w-0 flex-1 items-start gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {book.coverUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -151,7 +165,11 @@ export function LibraryCollection({ books }: { books: Book[] }) {
                 )}
               </div>
             </Link>
-            {!book.format && <FormatCorrection book={book} />}
+            {!book.format && (
+              <div className="relative">
+                <FormatCorrection book={book} />
+              </div>
+            )}
           </li>
         ))}
       </ul>

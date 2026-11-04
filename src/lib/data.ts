@@ -1,4 +1,4 @@
-import type { SessionStatus } from "@/lib/types";
+import type { SessionListFilter } from "@/lib/domain/session-presentation";
 import type { ChildRelation } from "@/lib/domain/relations";
 import type {
   AddBookResolution,
@@ -40,6 +40,12 @@ export async function getLibrary() {
 
 export async function getBook(id: string) {
   return isDemoMode() ? demo.getBook(id) : live.getBook(id);
+}
+
+export async function getBookHistory(bookId: string, today: string) {
+  return isDemoMode()
+    ? demo.getBookHistory(bookId, today)
+    : live.getBookHistory(bookId, today);
 }
 
 export async function getDashboard(filter: DashboardFilter) {
@@ -172,11 +178,12 @@ export async function deleteKid(id: string) {
 
 export async function getFamilySessionPage(
   requestedPage?: string | string[],
-  status?: SessionStatus,
+  filter?: SessionListFilter,
+  today?: string,
 ) {
   return isDemoMode()
-    ? demo.getFamilySessionPage(requestedPage, status)
-    : live.getFamilySessionPage(requestedPage, status);
+    ? demo.getFamilySessionPage(requestedPage, filter, today)
+    : live.getFamilySessionPage(requestedPage, filter, today);
 }
 
 export async function getLibraryPage(query: string, page = 1) {

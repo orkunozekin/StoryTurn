@@ -1,8 +1,8 @@
-import { BrandLogo } from "@/components/brand-logo";
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AppNav } from "@/components/app-nav";
+import { SiteNav } from "@/components/site-nav";
+import { firstName } from "@/lib/first-name";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -34,21 +34,23 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <AppNav displayName={home.member.displayName} />
+      <SiteNav displayName={home.member.displayName} />
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
         <section className="animate-rise max-w-2xl">
-          <BrandLogo className="w-64" />
-          <p className="mt-2 text-muted-foreground">
+          <p className="font-display text-2xl text-primary md:text-3xl">
+            Good evening, {firstName(home.member.displayName)}
+          </p>
+          <p className="mt-1 text-muted-foreground">
             {home.family?.name} · reading with{" "}
             {home.kids.map((k) => k.name).join(" & ") || "your kids"}
           </p>
         </section>
 
-        <section className="story-panel animate-rise-delay mt-8 rounded-3xl p-6 md:p-8">
+        <section className="story-panel animate-rise-delay mt-6 rounded-2xl p-6 md:p-8">
           {next ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-accent text-accent-foreground hover:bg-accent">
+                <Badge className="bg-primary text-primary-foreground hover:bg-primary">
                   Your next night
                 </Badge>
                 {corrected && <Badge variant="outline">Corrected record</Badge>}
@@ -110,9 +112,17 @@ export default async function HomePage() {
               <p className="mt-3 text-muted-foreground">
                 Check the family schedule or ask an owner to add you to the rotation.
               </p>
-              <Link href="/schedule" className={cn(buttonVariants(), "mt-6")}>
-                Review schedule
-              </Link>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/schedule" className={buttonVariants()}>
+                  Review schedule
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className={buttonVariants({ variant: "outline" })}
+                >
+                  View reading stats
+                </Link>
+              </div>
             </>
           )}
         </section>

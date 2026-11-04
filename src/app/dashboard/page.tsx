@@ -1,7 +1,7 @@
 import { BackLink } from "@/components/back-link";
 export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
-import { AppNav } from "@/components/app-nav";
+import { SiteNav } from "@/components/site-nav";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentMember, getCurrentUser, getDashboard } from "@/lib/data";
 import Link from "next/link";
@@ -54,7 +54,7 @@ export default async function DashboardPage({
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <AppNav displayName={member.displayName} />
+      <SiteNav displayName={member.displayName} />
       <main className="mx-auto w-full max-w-5xl px-4 py-8">
         <BackLink />
         <section className="animate-rise">
@@ -65,7 +65,7 @@ export default async function DashboardPage({
           </p>
         </section>
 
-        <div className="mt-5 flex flex-wrap gap-2 animate-rise-delay">
+        <div className="mt-4 flex flex-wrap gap-2 animate-rise-delay">
           <Link
             href={`/dashboard?filter=${member.id}`}
             className={cn(
@@ -112,7 +112,7 @@ export default async function DashboardPage({
           </Link>
         </div>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-3">
+        <section className="reveal-stagger mt-6 grid gap-4 sm:grid-cols-3">
           {[
             ["Sessions completed", dash.stats.sessionsCompleted],
             ["Books logged", dash.stats.totalBooksLogged],
@@ -125,7 +125,7 @@ export default async function DashboardPage({
           ))}
         </section>
 
-        <section className="mt-8 grid gap-6 md:grid-cols-2">
+        <section className="reveal mt-6 grid gap-4 md:grid-cols-2">
           <div className="story-panel rounded-2xl p-5">
             <h2 className="font-display text-xl">Recent</h2>
             <ul className="mt-4 space-y-3">

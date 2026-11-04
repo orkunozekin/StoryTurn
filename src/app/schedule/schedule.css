@@ -1,0 +1,16 @@
+/* Filter pills use the shared .chip look; links mark the active one with aria-current. */
+.schedule-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.schedule-filter-chip[aria-current="page"] {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+.schedule-filter-chip__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  opacity: 0.7;
+}
