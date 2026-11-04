@@ -218,3 +218,23 @@ export async function reserveBookLookup() {
   nextDemoLookup = slot + 1100;
   await new Promise((resolve) => setTimeout(resolve, slot - Date.now()));
 }
+
+export async function listReaderRequests(sessionId?: string) {
+  return isDemoMode()
+    ? demo.listReaderRequests(sessionId)
+    : live.listReaderRequests(sessionId);
+}
+export async function requestToReadNight(sessionId: string, note?: string | null) {
+  if (isDemoMode()) demo.requestToReadNight(sessionId, note);
+  else await live.requestToReadNight(sessionId, note);
+}
+export async function withdrawReaderRequest(requestId: string) {
+  return isDemoMode()
+    ? demo.withdrawReaderRequest(requestId)
+    : live.withdrawReaderRequest(requestId);
+}
+export async function decideReaderRequest(requestId: string, approve: boolean) {
+  return isDemoMode()
+    ? demo.decideReaderRequest(requestId, approve)
+    : live.decideReaderRequest(requestId, approve);
+}

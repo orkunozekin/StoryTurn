@@ -14,11 +14,13 @@ import {
   cascadeInsertReader,
   createFamily,
   createInviteCode,
+  decideReaderRequest,
   deleteKid,
   deleteSchedule,
   getCurrentMember,
   getSessionDetail,
   joinFamily,
+  requestToReadNight,
   reserveBookLookup,
   saveSchedule,
   shuffleBooksForUpcomingSessions,
@@ -28,6 +30,7 @@ import {
   updateMember,
   updateMemberRelation,
   updateSession,
+  withdrawReaderRequest,
 } from "@/lib/data";
 import * as demo from "@/lib/demo/store";
 import { demoLogin, demoLogout } from "@/lib/demo/store";
@@ -423,4 +426,43 @@ export async function reactivateSessionAction(sessionId: string) {
   });
   for (const path of ["/", "/schedule", "/dashboard", `/sessions/${sessionId}`])
     revalidatePath(path);
+}
+
+function requiredId(formData: FormData, key: string): string {
+  const value = String(formData.get(key) ?? "").trim();
+  if (!value || value.length > 100) throw new Error("Something is missing. Refresh and try again.");
+  return value;
+}
+
+function revalidateRequestPaths(sessionId: string) {
+  for (const path of ["/", "/schedule", "/dashboard", `/sessions/${sessionId}`])
+    revalidatePath(path);
+}
+
+/** Ask to read a night. Membership, status and date are checked in the data layer. */
+export async function requestToReadAction(formData: FormData) {
+  const sessionId = requiredId(formData, "sessionId");
+  const note = formData.get("note");
+  await requestToReadNight(sessionId, typeof note === "string" ? note : null);
+  revalidateRequestPaths(sessionId);
+}
+
+export async function withdrawReaderRequestAction(formData: FormData) {
+  const requestId = requiredId(formData, "requestId");
+  const sessionId = requiredId(formData, "sessionId");
+  await withdrawReaderRequest(requestId);
+  revalidateRequestPaths(sessionId);
+}
+
+/** Parents approve or decline; the data layer re-checks the owner role. */
+export async function decideReaderRequestAction(formData: FormData) {
+  const requestId = requiredId(formData, "requestId");
+  const sessionId = requiredId(formData, "sessionId");
+  const decision = String(formData.get("decision") ?? "");
+  if (decision !== "approve" && decision !== "decline") {
+    throw new Error("Pick approve or decline");
+  }
+  await decideReaderRequest(requestId, decision === "approve");
+  revalidateRequestPaths(sessionId);
+  return { decision };
 }
