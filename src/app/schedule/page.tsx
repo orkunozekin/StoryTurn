@@ -186,14 +186,14 @@ export default async function SchedulePage({
                   min={1}
                   step={1}
                   required
-                  defaultValue={admin.schedule?.booksPerSession ?? 1}
+                  defaultValue={admin.schedule?.booksPerSession ?? 3}
                 />
               </div>
               <div className="flex items-center gap-1 sm:col-span-2">
                 <ChoiceChip
                   variant="row"
                   name="assignRandomBooks"
-                  defaultChecked={admin.schedule?.assignRandomBooks ?? false}
+                  defaultChecked={admin.schedule?.assignRandomBooks ?? true}
                   labelClassName="flex-1"
                 >
                   Assign random books from the family library each night
