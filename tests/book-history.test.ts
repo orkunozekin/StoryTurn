@@ -88,9 +88,9 @@ const input = {
 describe("computeBookHistory", () => {
   const history = computeBookHistory(input);
 
-  it("counts only completed nights with the book, most recent first", () => {
-    expect(history.timesRead).toBe(3);
-    expect(history.history.map((n) => n.sessionId)).toEqual(["s2", "s3", "s1"]);
+  it("counts logged and past unlogged nights with the book, most recent first", () => {
+    expect(history.timesRead).toBe(4);
+    expect(history.history.map((n) => n.sessionId)).toEqual(["s2", "s7", "s3", "s1"]);
     expect(history.lastRead?.sessionId).toBe("s2");
   });
 
@@ -114,6 +114,20 @@ describe("computeBookHistory", () => {
     expect(history.upcoming.map((n) => n.sessionId)).toEqual(["s6", "s5"]);
   });
 
+  it("counts a past unlogged night as read but tonight as upcoming", () => {
+    const tonight = computeBookHistory({
+      ...input,
+      sessions: [
+        session("p", "2026-11-05", "scheduled"),
+        session("t", "2026-11-06", "scheduled"),
+      ],
+      assignments: [],
+      sessionBooks: [link("p", "gruffalo"), link("t", "gruffalo")],
+    });
+    expect(tonight.history.map((n) => n.sessionId)).toEqual(["p"]);
+    expect(tonight.upcoming.map((n) => n.sessionId)).toEqual(["t"]);
+  });
+
   it("handles a book nobody has read", () => {
     const empty = computeBookHistory({ ...input, bookId: "unknown" });
     expect(empty).toEqual({
@@ -128,7 +142,7 @@ describe("computeBookHistory", () => {
 
   it("summarises for the open book", () => {
     expect(bookHistorySummary(history, input.today, "UTC")).toBe(
-      "Read 3 times · last on Wednesday",
+      "Read 4 times · last on Wednesday",
     );
   });
 });

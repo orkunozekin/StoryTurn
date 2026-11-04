@@ -1,4 +1,4 @@
-import { sessionDateKey } from "@/lib/domain/sessions";
+import { effectiveStatus, isUpcomingNight } from "@/lib/domain/sessions";
 import type {
   Book,
   FamilyMember,
@@ -74,11 +74,11 @@ export const computeBookHistory = ({
 
   const withBook = sessions.filter((s) => sessionIds.has(s.id));
   const history = withBook
-    .filter((s) => s.status === "completed")
+    .filter((s) => effectiveStatus(s, today) === "completed")
     .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor))
     .map(toNight);
   const upcoming = withBook
-    .filter((s) => s.status === "scheduled" && sessionDateKey(s.scheduledFor) >= today)
+    .filter((s) => isUpcomingNight(s, today))
     .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))
     .map(toNight);
 

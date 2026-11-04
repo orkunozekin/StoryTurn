@@ -49,15 +49,14 @@ it("submits retained planned books through the actual session form and server ac
     screen.getByLabelText("Other book titles (one per line)"),
     "\nOne more story",
   );
-  await user.click(screen.getByLabelText("Status"));
-  await user.click(await screen.findByRole("option", { name: "Completed" }));
+  // A coming-up night can't be marked past by hand any more; it stays coming up.
   await user.click(screen.getByRole("button", { name: "Save changes" }));
   await waitFor(() =>
-    expect(store.getSessionDetail(night.id)?.session.status).toBe("completed"),
+    expect(
+      store.getSessionDetail(night.id)?.books.map((b) => b.titleFreeform ?? b.bookId),
+    ).toEqual(["book_moon", "book_hungry", "Planned story", "One more story"]),
   );
-  expect(
-    store.getSessionDetail(night.id)?.books.map((b) => b.titleFreeform ?? b.bookId),
-  ).toEqual(["book_moon", "book_hungry", "Planned story", "One more story"]);
+  expect(store.getSessionDetail(night.id)?.session.status).toBe("scheduled");
 });
 
 it("removes an initially selected book when saved with the modal closed", async () => {
@@ -162,7 +161,7 @@ it("confirms reactivation through the edit form status selector", async () => {
   render(await SessionPage({ params: Promise.resolve({ id: night.id }) }));
   const user = userEvent.setup();
   await user.click(screen.getByLabelText("Status"));
-  await user.click(await screen.findByRole("option", { name: "Scheduled" }));
+  await user.click(await screen.findByRole("option", { name: "Coming up" }));
   await user.click(screen.getByRole("button", { name: "Save changes" }));
   expect(screen.getByRole("dialog")).toBeTruthy();
   expect(store.getSessionDetail(night.id)?.session.status).toBe("cancelled");
@@ -180,10 +179,32 @@ it("does not promise invitations when reopening a past session as completed", as
   render(await SessionPage({ params: Promise.resolve({ id: night.id }) }));
   const user = userEvent.setup();
   await user.click(screen.getByLabelText("Status"));
-  await user.click(await screen.findByRole("option", { name: "Completed" }));
+  await user.click(await screen.findByRole("option", { name: "Past" }));
   await user.type(screen.getByLabelText("Correction reason"), "Correcting the record");
   await user.click(screen.getByRole("button", { name: "Save changes" }));
   expect(screen.getByRole("dialog").textContent).toContain(
     "No calendar invitations will be sent for this past session.",
   );
+});
+
+it("offers Coming up / Canceled for a coming-up night", async () => {
+  const night = store.getHomeContext().nextSession!;
+  render(await SessionPage({ params: Promise.resolve({ id: night.id }) }));
+  const user = userEvent.setup();
+  await user.click(screen.getByLabelText("Status"));
+  const options = (await screen.findAllByRole("option")).map((o) => o.textContent);
+  expect(options).toEqual(["Coming up", "Canceled"]);
+});
+
+it("shows an unlogged past night as Past and offers Past / Canceled", async () => {
+  const night = store.getHomeContext().nextSession!;
+  store.getDemoState().sessions.find((session) => session.id === night.id)!.scheduledFor =
+    "2020-01-01T19:30:00";
+  render(await SessionPage({ params: Promise.resolve({ id: night.id }) }));
+  expect(screen.getAllByText("Past").length).toBeGreaterThan(0);
+  expect(screen.queryByText("Coming up")).toBeNull();
+  const user = userEvent.setup();
+  await user.click(screen.getByLabelText("Status"));
+  const options = (await screen.findAllByRole("option")).map((o) => o.textContent);
+  expect(options).toEqual(["Past", "Canceled"]);
 });

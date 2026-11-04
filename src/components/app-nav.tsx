@@ -102,13 +102,6 @@ export function AppNav({
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <span
-            className="hidden max-w-40 items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs text-muted-foreground md:inline-flex"
-            title={displayName}
-          >
-            <UserRound className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{shortName}</span>
-          </span>
           <ConfirmationForm
             title="Sign out?"
             description="You will need to sign in again to access your family."
@@ -116,7 +109,12 @@ export function AppNav({
             action={logoutAction}
             className="hidden md:block"
           >
-            <Button type="submit" variant="outline" size="sm">
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              title={`Signed in as ${displayName}`}
+            >
               Sign out
             </Button>
           </ConfirmationForm>

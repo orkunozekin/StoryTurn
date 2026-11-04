@@ -742,6 +742,78 @@ export async function ensureAllUpcomingSessions(daysAhead = 14): Promise<number>
   return insertGeneratedSessions(supabase, schedules, daysAhead);
 }
 
+/** Today for each family: its active schedule's timezone, or the default. */
+function familyToday(familyId: string, schedules: Schedule[], now: Date): string {
+  const schedule = schedules.find((s) => s.familyId === familyId);
+  return formatDateOnlyInTimeZone(now, schedule?.timezone ?? DEFAULT_FAMILY_TIMEZONE);
+}
+
+/**
+ * Marks scheduled nights dated before each family's today as completed. A plain status
+ * update: no emails, calendar updates or corrections history.
+ */
+async function completePastSessionsWith(
+  supabase: SupabaseClient,
+  familyIds: string[] | null,
+  now: Date,
+): Promise<number> {
+  const schedules = await rows(
+    supabase.from("schedules").select("*").eq("active", true),
+    mapSchedule,
+    "Could not load schedules",
+  );
+  // Nothing is dated before the earliest possible "today", so query up to the latest.
+  const todays = (familyIds ?? schedules.map((s) => s.familyId)).map((f) =>
+    familyToday(f, schedules, now),
+  );
+  const latest = [...todays, formatDateOnlyInTimeZone(now, DEFAULT_FAMILY_TIMEZONE)]
+    .sort()
+    .at(-1)!;
+  const candidates = await allRows(
+    (from, to) => {
+      const query = supabase
+        .from("reading_sessions")
+        .select("id,family_id,scheduled_for")
+        .eq("status", "scheduled")
+        .lt("scheduled_for", sessionDayStart(latest));
+      return (familyIds ? query.in("family_id", familyIds) : query)
+        .order("id")
+        .range(from, to);
+    },
+    (row) => ({
+      id: String(row.id),
+      familyId: String(row.family_id),
+      scheduledFor: String(row.scheduled_for),
+    }),
+    "Could not load past sessions",
+  );
+  const ids = candidates
+    .filter(
+      (s) => sessionDateKey(s.scheduledFor) < familyToday(s.familyId, schedules, now),
+    )
+    .map((s) => s.id);
+  for (let i = 0; i < ids.length; i += ID_CHUNK) {
+    const { error } = await supabase
+      .from("reading_sessions")
+      .update({ status: "completed" })
+      .in("id", ids.slice(i, i + ID_CHUNK))
+      .eq("status", "scheduled");
+    assertNoError(error, "Could not complete past sessions");
+  }
+  return ids.length;
+}
+
+/** The signed-in family's past scheduled nights become completed. */
+export async function completePastSessions(now = new Date()): Promise<number> {
+  const { supabase, member } = requireMember(await loadContext());
+  return completePastSessionsWith(supabase, [member.familyId], now);
+}
+
+/** Every family's past scheduled nights become completed (cron). */
+export async function completeAllPastSessions(now = new Date()): Promise<number> {
+  return completePastSessionsWith(createServiceClient(), null, now);
+}
+
 export async function createFamily(
   name: string,
   relation: ChildRelation = "parent",
@@ -1105,9 +1177,13 @@ export async function getFamilySessionPage(
   const segments = {
     upcoming: (head: boolean) =>
       familyRows(head).eq("status", "scheduled").gte("scheduled_for", dayStart),
-    past: (head: boolean) =>
+    // Everything that isn't coming up; the tail of "All".
+    notUpcoming: (head: boolean) =>
       familyRows(head).or(`status.neq.scheduled,scheduled_for.lt.${dayStart}`),
-    completed: (head: boolean) => familyRows(head).eq("status", "completed"),
+    past: (head: boolean) =>
+      familyRows(head)
+        .neq("status", "cancelled")
+        .or(`status.eq.completed,scheduled_for.lt.${dayStart}`),
     canceled: (head: boolean) => familyRows(head).eq("status", "cancelled"),
   };
   const countOf = async (
@@ -1117,14 +1193,14 @@ export async function getFamilySessionPage(
     assertNoError(error, "Could not count sessions");
     return count ?? 0;
   };
-  const [all, upcoming, past, completed, canceled] = await Promise.all([
+  const [all, upcoming, past, canceled] = await Promise.all([
     countOf(familyRows(true)),
     countOf(segments.upcoming(true)),
     countOf(segments.past(true)),
-    countOf(segments.completed(true)),
     countOf(segments.canceled(true)),
   ]);
-  const counts: SessionFilterCounts = { all, upcoming, completed, canceled };
+  const counts: SessionFilterCounts = { upcoming, past, canceled, all };
+  const notUpcoming = all - upcoming;
   const { page, pageCount, total, from, to } = sessionPageBounds(
     counts[filter],
     requestedPage,
@@ -1146,14 +1222,14 @@ export async function getFamilySessionPage(
   let items: ReadingSession[] = [];
   if (total > 0) {
     if (filter === "upcoming") items = await load("upcoming", true, from, to);
-    else if (filter === "completed") items = await load("completed", false, from, to);
+    else if (filter === "past") items = await load("past", false, from, to);
     else if (filter === "canceled") items = await load("canceled", false, from, to);
     else {
       // "All": upcoming nights (soonest first), then everything else (latest first).
       const [head, tail] = await Promise.all([
         from < upcoming ? load("upcoming", true, from, Math.min(to, upcoming - 1)) : [],
-        to >= upcoming && past > 0
-          ? load("past", false, Math.max(0, from - upcoming), to - upcoming)
+        to >= upcoming && notUpcoming > 0
+          ? load("notUpcoming", false, Math.max(0, from - upcoming), to - upcoming)
           : [],
       ]);
       items = [...head, ...tail];

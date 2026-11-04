@@ -43,7 +43,7 @@ import {
 } from "@/lib/domain/dates";
 import { childRelationLabel } from "@/lib/domain/relations";
 import { SESSION_BOOK_PICK_COUNT } from "@/lib/domain/session-books";
-import { sessionDateKey } from "@/lib/domain/sessions";
+import { effectiveStatus, isUpcomingNight } from "@/lib/domain/sessions";
 import { sessionPageNumbers } from "@/lib/domain/session-presentation";
 import Link from "next/link";
 import { SessionStatusBadge } from "@/components/session-status";
@@ -52,18 +52,26 @@ import { InfoTip } from "@/components/ui/info-tip";
 import "./schedule.css";
 
 const FILTER_LABELS: Record<SessionListFilter, string> = {
-  all: "All",
   upcoming: "Coming up",
-  completed: "Completed",
+  past: "Past",
   canceled: "Canceled",
+  all: "All",
 };
 
 const EMPTY_MESSAGES: Record<SessionListFilter, string> = {
-  all: "No reading nights yet.",
-  upcoming: "No upcoming nights scheduled.",
-  completed: "No completed nights yet.",
+  upcoming: "No nights coming up.",
+  past: "No past nights yet.",
   canceled: "No canceled nights.",
+  all: "No reading nights yet.",
 };
+
+function countText(filter: SessionListFilter, total: number): string {
+  const nights = total === 1 ? "night" : "nights";
+  if (filter === "upcoming") return `${total} ${nights} coming up`;
+  if (filter === "past") return `${total} past ${nights}`;
+  if (filter === "canceled") return `${total} canceled ${nights}`;
+  return `${total} ${nights}`;
+}
 
 /** Filter pills omit `page` so switching filters always starts on page 1. */
 function scheduleHref(filter: SessionListFilter, page?: number) {
@@ -102,9 +110,7 @@ export default async function SchedulePage({
     listFamilyAssignments(),
     getUpcomingBookCtaState(),
   ]);
-  const futureScheduled = allSessions.filter(
-    (s) => s.status === "scheduled" && sessionDateKey(s.scheduledFor) >= today,
-  );
+  const futureScheduled = allSessions.filter((s) => isUpcomingNight(s, today));
 
   const readerLabel = (sessionId: string) =>
     [...assignments, ...allAssignments]
@@ -390,7 +396,7 @@ export default async function SchedulePage({
                     })}
                   </span>
                   <SessionStatusBadge
-                    status={session.status}
+                    status={effectiveStatus(session, today)}
                     className="col-start-2 row-start-1 justify-self-center"
                   />
                   <span className="col-start-1 row-start-2 min-w-0 break-words text-sm text-muted-foreground sm:col-start-3 sm:row-start-1 sm:text-right">
@@ -431,8 +437,8 @@ export default async function SchedulePage({
                 )}
               </div>
               <span className="text-sm" aria-live="polite">
-                Page {pagination.page} of {pagination.pageCount} · {pagination.total}{" "}
-                {pagination.total === 1 ? "night" : "nights"}
+                Page {pagination.page} of {pagination.pageCount} ·{" "}
+                {countText(filter, pagination.total)}
               </span>
             </nav>
           )}

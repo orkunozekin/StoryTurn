@@ -103,9 +103,12 @@ it("closes an expanded mobile panel when desktop navigation appears", async () =
   ).toBe(true);
 });
 
-it("shows only the first name, keeping the full name as a tooltip", () => {
+it("shows only the first name in the menu and names the account on Sign out", () => {
   render(createElement(AppNav, { displayName: "Alex Morgan Smith" }));
   expect(screen.queryByText("Alex Morgan Smith")).toBeNull();
   expect(screen.getAllByText("Alex").length).toBeGreaterThan(0);
-  expect(document.querySelector('[title="Alex Morgan Smith"]')).not.toBeNull();
+  // The desktop name pill was display-only; the full name now sits on Sign out.
+  expect(
+    document.querySelector('[title="Signed in as Alex Morgan Smith"]'),
+  ).not.toBeNull();
 });

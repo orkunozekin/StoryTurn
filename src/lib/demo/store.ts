@@ -24,6 +24,7 @@ import {
 import {
   assertTransition,
   buildIcsUid,
+  effectiveStatus,
   generateSessionsFromSchedule,
   isPastSession,
   nextSessionForMember,
@@ -816,6 +817,25 @@ export function getHomeContext() {
       : [],
     books: state().books.filter((book) => book.familyId === member.familyId),
   };
+}
+
+/**
+ * Marks the family's scheduled nights dated before its today as completed. A plain
+ * status update: no emails, calendar updates or corrections history.
+ */
+export function completePastSessions(now = new Date()): number {
+  const member = getCurrentMember();
+  if (!member) return 0;
+  const today = formatDateOnlyInTimeZone(now, familyTimezone(member.familyId));
+  let completed = 0;
+  for (const session of state().sessions) {
+    if (session.familyId !== member.familyId) continue;
+    if (effectiveStatus(session, today) !== session.status) {
+      session.status = "completed";
+      completed += 1;
+    }
+  }
+  return completed;
 }
 
 export function listFamilySessions() {
