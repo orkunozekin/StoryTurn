@@ -31,18 +31,49 @@ export type SpineLook = {
   offsetX: number;
   /** Small tilt in degrees for the phone pile. */
   tilt: number;
+  /** Spine thickness in px: the book's width upright, its height in the phone pile. */
+  thickness: number;
+  /** Which printed decoration the spine carries, so neighbours don't all match. */
+  trim: SpineTrim;
 };
+
+export type SpineTrim = "bands" | "cap" | "plain";
+
+const SPINE_TRIMS: readonly SpineTrim[] = ["bands", "cap", "plain"];
 
 /** Stable per-book look, so a book keeps its colour and size between visits. */
 export const spineLook = (book: Pick<Book, "id" | "title">): SpineLook => {
   const h = hash(book.id || book.title);
   return {
     color: SPINE_COLORS[h % SPINE_COLORS.length] ?? SPINE_COLORS[0],
-    length: 150 + (h % 70),
+    length: 170 + (h % 60),
     offsetX: ((h >>> 8) % 21) - 10,
     tilt: (((h >>> 16) % 41) - 20) / 10,
+    thickness: 32 + ((h >>> 4) % 17),
+    trim: SPINE_TRIMS[(h >>> 12) % SPINE_TRIMS.length] ?? "plain",
   };
 };
+
+/** Surname shown at the foot of a spine, the way publishers print it. */
+export const spineAuthor = (authors: readonly string[]) => {
+  const first = authors[0]?.trim();
+  if (!first) return "";
+  return first.split(/\s+/).at(-1) ?? first;
+};
+
+/** Books per page on the shelf and in the list. */
+export const SHELF_PAGE_SIZE = 24;
+
+/** Total pages for `count` books, never less than one. */
+export const shelfPageCount = (count: number, pageSize = SHELF_PAGE_SIZE) =>
+  Math.max(1, Math.ceil(count / pageSize));
+
+/** The books on a 1-based page. */
+export const shelfPage = <T>(
+  items: readonly T[],
+  page: number,
+  pageSize = SHELF_PAGE_SIZE,
+) => items.slice((page - 1) * pageSize, page * pageSize);
 
 /** Books lean this many degrees on the tablet and desktop shelf. */
 export const SHELF_LEAN_DEG = 15;

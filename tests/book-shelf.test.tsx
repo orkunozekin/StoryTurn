@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { BookShelf } from "@/components/book-shelf";
-import { matchesQuery, spineLook } from "@/lib/shelf";
+import { SHELF_PAGE_SIZE, matchesQuery, spineAuthor, spineLook } from "@/lib/shelf";
 import type { Book } from "@/lib/types";
 
 vi.mock("@/app/book-actions", () => ({
@@ -49,8 +49,8 @@ it("matches titles and authors case-insensitively", () => {
 it("gives each book a stable spine look", () => {
   expect(spineLook(books[0]!)).toEqual(spineLook(books[0]!));
   const { length, tilt } = spineLook(books[1]!);
-  expect(length).toBeGreaterThanOrEqual(150);
-  expect(length).toBeLessThan(220);
+  expect(length).toBeGreaterThanOrEqual(170);
+  expect(length).toBeLessThan(230);
   expect(Math.abs(tilt)).toBeLessThanOrEqual(2);
 });
 
@@ -124,4 +124,59 @@ it("treats formats with different capitalisation or spacing as one", () => {
   expect(spine("Don't Trust Fish!").className).not.toContain("is-dimmed");
   expect(spine("Together").className).not.toContain("is-dimmed");
   expect(spine("Animal Families").className).toContain("is-dimmed");
+});
+
+it("prints the first author's surname on the spine", () => {
+  expect(spineAuthor(["Julia Donaldson", "Axel Scheffler"])).toBe("Donaldson");
+  expect(spineAuthor(["Dr. Seuss "])).toBe("Seuss");
+  expect(spineAuthor([])).toBe("");
+});
+
+const many = Array.from({ length: SHELF_PAGE_SIZE + 5 }, (_, i) =>
+  book(`m${i}`, `Book ${i}`, [i === SHELF_PAGE_SIZE + 2 ? "Late Author" : "Someone"]),
+);
+
+it("pages through a long shelf", () => {
+  render(createElement(BookShelf, { books: many }));
+  expect(screen.getByText("Book 0")).toBeTruthy();
+  expect(screen.queryByText(`Book ${SHELF_PAGE_SIZE}`)).toBeNull();
+  expect(screen.getByText(`1–${SHELF_PAGE_SIZE} of ${many.length} books`)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  expect(screen.queryByText("Book 0")).toBeNull();
+  expect(screen.getByText(`Book ${SHELF_PAGE_SIZE}`)).toBeTruthy();
+  expect(
+    screen.getByRole("button", { name: "Page 2" }).getAttribute("aria-current"),
+  ).toBe("page");
+});
+
+it("hides pagination when everything fits on one page", () => {
+  render(createElement(BookShelf, { books }));
+  expect(screen.queryByRole("navigation", { name: "Shelf pages" })).toBeNull();
+});
+
+it("jumps to the page holding the first match when searching the shelf", () => {
+  render(createElement(BookShelf, { books: many }));
+  fireEvent.change(screen.getByLabelText("Search your shelf"), {
+    target: { value: "late author" },
+  });
+  const match = spine(`Book ${SHELF_PAGE_SIZE + 2}`);
+  expect(match.className).not.toContain("is-dimmed");
+  expect(
+    screen.getByRole("button", { name: "Page 2" }).getAttribute("aria-current"),
+  ).toBe("page");
+});
+
+it("pages only the matching books in the list view", () => {
+  render(createElement(BookShelf, { books: many }));
+  fireEvent.click(screen.getByRole("button", { name: "List" }));
+  expect(screen.getByRole("navigation", { name: "Shelf pages" })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Search your shelf"), {
+    target: { value: "late author" },
+  });
+  expect(screen.queryByRole("navigation", { name: "Shelf pages" })).toBeNull();
+  expect(
+    screen.getByRole("checkbox", {
+      name: new RegExp(`Select Book ${SHELF_PAGE_SIZE + 2}`),
+    }),
+  ).toBeTruthy();
 });

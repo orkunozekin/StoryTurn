@@ -26,7 +26,10 @@ export default async function LibraryPage() {
           </p>
         </section>
 
-        <section id="find-book" className="story-panel reveal mt-6 scroll-mt-24 rounded-2xl p-5">
+        <section
+          id="find-book"
+          className="story-panel reveal mt-6 scroll-mt-24 rounded-2xl p-5"
+        >
           <h2 className="font-display text-xl">Find a book</h2>
           <div className="mt-3">
             <BookScanner />
@@ -40,7 +43,7 @@ export default async function LibraryPage() {
           </div>
         </section>
 
-        <section className="reveal mt-6">
+        <section id="your-shelf" className="reveal mt-6 scroll-mt-24">
           <h2 className="font-display text-xl">Your shelf</h2>
           <BookShelf books={books} />
         </section>
