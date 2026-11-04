@@ -206,7 +206,14 @@ begin
   end if;
 
   update public.session_assignments a set is_current = false where a.session_id = night.id and a.is_current;
-  update public.session_assignments a set is_current = true where a.session_id = night.id and a.member_id = req.member_id;
+  -- Reactivate one existing row (the original, else the newest) so a reader
+  -- reassigned more than once never ends up with duplicate current rows.
+  update public.session_assignments a set is_current = true
+    where a.id = (
+      select x.id from public.session_assignments x
+      where x.session_id = night.id and x.member_id = req.member_id
+      order by x.is_original desc, x.created_at desc, x.id desc limit 1
+    );
   if not found then
     insert into public.session_assignments(session_id, member_id, is_original, is_current) values (night.id, req.member_id, false, true);
   end if;

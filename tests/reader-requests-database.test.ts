@@ -213,6 +213,28 @@ describe("decide_session_reader_request", () => {
     ).rejects.toThrow(/already closed/);
   });
 
+  it("reactivates a single row when the requester was assigned to the night more than once", async () => {
+    const night = await addNight(2, members.jordan);
+    // Nana read this night twice before being replaced each time.
+    await db.query(
+      `insert into session_assignments(session_id,member_id,is_original,is_current,created_at)
+       values($1,$2,false,false,now() - interval '2 days'),($1,$2,false,false,now() - interval '1 day')`,
+      [night, members.nana],
+    );
+    await as(nana);
+    const id = await request(night);
+    await as(owner);
+    await db.query("select * from decide_session_reader_request($1,true)", [id]);
+    expect(await readers(night)).toEqual([members.nana]);
+    const current = (
+      await db.query<{ count: number }>(
+        "select count(*)::int as count from session_assignments where session_id = $1 and is_current",
+        [night],
+      )
+    ).rows[0].count;
+    expect(current).toBe(1);
+  });
+
   it("declines without touching readers", async () => {
     const night = await addNight(2, members.jordan);
     await as(nana);
