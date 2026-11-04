@@ -1,4 +1,5 @@
-import { addDays, readerForDate } from "@/lib/domain/rotation";
+import { addDays } from "@/lib/domain/rotation";
+import { readerForPlanDate } from "@/lib/domain/weekday-plan";
 import type {
   ReadingSession,
   Schedule,
@@ -23,15 +24,26 @@ export function buildIcsUid(familyId: string, date: string): string {
   return `storyturn-${familyId}-${date}@bedtime-readers.app`;
 }
 
+/**
+ * Drafts for missing nights up to `throughDate`. Each night's reader comes from the
+ * weekday plan (`readerForPlanDate`): fixed weekdays go to their member and rotate
+ * weekdays take the next turn in the pool, counted from the start date, so running
+ * this one horizon at a time gives the same readers as running it once.
+ * A rotate night with nobody in the pool is skipped. Pass `familyMemberIds` so
+ * people who left the family are dropped from the plan and the pool.
+ */
 export function generateSessionsFromSchedule(params: {
   schedule: Schedule;
   existingSessionDates: Set<string>;
   throughDate: string;
   nowDate?: string;
+  familyMemberIds?: Iterable<string>;
 }): GeneratedSessionDraft[] {
   const { schedule, existingSessionDates, throughDate } = params;
   if (!schedule.active) return [];
-  if (schedule.readerRotationMemberIds.length === 0) return [];
+  const familyMemberIds = params.familyMemberIds
+    ? [...params.familyMemberIds]
+    : undefined;
 
   const drafts: GeneratedSessionDraft[] = [];
   let cursor = schedule.startDate;
@@ -39,16 +51,24 @@ export function generateSessionsFromSchedule(params: {
 
   while (cursor <= throughDate) {
     if (!existingSessionDates.has(cursor)) {
-      const memberId = readerForDate(
-        schedule.readerRotationMemberIds,
-        schedule.startDate,
-        cursor,
-      );
-      drafts.push({
-        scheduledFor: combineLocalDateTime(cursor, schedule.timeLocal, schedule.timezone),
-        memberId,
-        icsUid: buildIcsUid(schedule.familyId, cursor),
+      const { memberId } = readerForPlanDate({
+        pool: schedule.readerRotationMemberIds,
+        plan: schedule.weekdayReaders,
+        startDate: schedule.startDate,
+        date: cursor,
+        familyMemberIds,
       });
+      if (memberId) {
+        drafts.push({
+          scheduledFor: combineLocalDateTime(
+            cursor,
+            schedule.timeLocal,
+            schedule.timezone,
+          ),
+          memberId,
+          icsUid: buildIcsUid(schedule.familyId, cursor),
+        });
+      }
     }
     cursor = addDays(cursor, 1);
   }

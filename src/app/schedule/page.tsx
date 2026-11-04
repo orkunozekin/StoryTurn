@@ -1,5 +1,7 @@
 import { NativeSelect } from "@/components/ui/native-select";
 import { ChoiceChip } from "@/components/ui/choice-chip";
+import { WeekdayPlanFields } from "@/components/weekday-plan-fields";
+import { defaultRotationPool, effectiveWeekdayPlan } from "@/lib/domain/weekday-plan";
 import {
   SESSION_LIST_FILTERS,
   sessionFilterParam,
@@ -158,27 +160,24 @@ export default async function SchedulePage({
             <h2 className="font-display text-xl">
               {admin.schedule ? "Edit rotation" : "Create rotation"}
             </h2>
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-bold">Readers in the rotation</legend>
-              <div className="flex flex-wrap gap-2">
-                {admin.readers.map((reader) => (
-                  <ChoiceChip
-                    key={reader.id}
-                    variant="chip"
-                    name="readers"
-                    value={reader.id}
-                    hint={`(${childRelationLabel(reader.relationToChildren)})`}
-                    defaultChecked={
-                      admin.schedule
-                        ? admin.schedule.readerRotationMemberIds.includes(reader.id)
-                        : true
-                    }
-                  >
-                    {reader.displayName}
-                  </ChoiceChip>
-                ))}
-              </div>
-            </fieldset>
+            <WeekdayPlanFields
+              readers={admin.readers.map((reader) => ({
+                id: reader.id,
+                displayName: reader.displayName,
+                hint: `(${childRelationLabel(reader.relationToChildren)})`,
+              }))}
+              defaultPool={
+                admin.schedule
+                  ? admin.schedule.readerRotationMemberIds
+                  : defaultRotationPool(admin.readers)
+              }
+              defaultPlan={effectiveWeekdayPlan(
+                admin.schedule?.weekdayReaders,
+                admin.readers.map((reader) => reader.id),
+              )}
+              defaultStartDate={admin.schedule?.startDate}
+              today={today}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start date</Label>
@@ -238,9 +237,9 @@ export default async function SchedulePage({
           </NativeTimezoneForm>
         ) : (
           <p className="story-panel mt-6 rounded-2xl p-5 text-sm text-muted-foreground">
-            Family owners manage the rotation. Your upcoming nights are listed below.
-            Want a night that isn&apos;t yours? Ask to read it and a parent will
-            approve or decline.
+            Family owners manage the rotation. Your upcoming nights are listed below. Want
+            a night that isn&apos;t yours? Ask to read it and a parent will approve or
+            decline.
           </p>
         )}
 

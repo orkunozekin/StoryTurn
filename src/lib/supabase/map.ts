@@ -1,4 +1,5 @@
 import { parseChildRelation } from "@/lib/domain/relations";
+import { normalizeWeekdayPlan } from "@/lib/domain/weekday-plan";
 import type {
   Book,
   Family,
@@ -69,9 +70,7 @@ export function mapMember(row: Row): FamilyMember {
 
 export function mapKid(row: Row): Kid {
   const birthday =
-    typeof row.birthday === "string" && row.birthday
-      ? row.birthday.slice(0, 10)
-      : null;
+    typeof row.birthday === "string" && row.birthday ? row.birthday.slice(0, 10) : null;
   return {
     id: str(row, "id"),
     familyId: str(row, "family_id"),
@@ -123,6 +122,7 @@ export function mapSchedule(row: Row): Schedule {
     familyId: str(row, "family_id"),
     mode: "together",
     readerRotationMemberIds: Array.isArray(ids) ? ids.map(String) : [],
+    weekdayReaders: normalizeWeekdayPlan(row.weekday_readers),
     startDate: str(row, "start_date").slice(0, 10),
     timeLocal: toTimeHm(str(row, "time_local")),
     timezone: str(row, "timezone"),

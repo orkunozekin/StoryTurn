@@ -3,6 +3,7 @@ import { pickRandomBookIds, SESSION_BOOK_PICK_COUNT } from "@/lib/domain/session
 import { generateSessionsFromSchedule, sessionDateKey } from "@/lib/domain/sessions";
 import type { AppState } from "@/lib/types";
 import { addDays, formatDateOnly } from "@/lib/domain/rotation";
+import { ALL_ROTATE } from "@/lib/domain/weekday-plan";
 
 function todayUtc(): string {
   return formatDateOnly(new Date());
@@ -148,6 +149,7 @@ export function createSeedState(now = new Date()): AppState {
         familyId: "fam_demo",
         mode: "together",
         readerRotationMemberIds: ["mem_alex", "mem_jordan"],
+        weekdayReaders: [...ALL_ROTATE],
         startDate,
         timeLocal: "19:30",
         timezone: "America/Los_Angeles",
