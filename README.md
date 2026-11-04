@@ -31,6 +31,10 @@ Product plan: [`docs/features/bedtime-readers-feature-plan.md`](docs/features/be
 - Vitest + GitHub Actions
 - Vercel hosting
 
+## Database migrations
+
+Schema changes go in `supabase/migrations/NNN_name.sql` (next three-digit number). They deploy to production automatically when merged to `main`, via GitHub Actions and `supabase db push`, and the Vercel production deploy waits for them. See [`docs/database-migrations.md`](docs/database-migrations.md) for how deploys work, adding a migration, re-running, recovery, and one-time setup.
+
 ## Demo mode
 
 If Supabase env vars are missing, or `FORCE_DEMO_MODE=1`, the app runs against an in-memory demo family:

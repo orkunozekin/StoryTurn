@@ -1,0 +1,91 @@
+# PR checks for supabase/migrations/. See docs/database-migrations.md.
+name: DB migrations check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/check-migrations.mjs"
+      - ".github/workflows/db-migrations*.yml"
+
+concurrency:
+  group: db-migrations-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  SUPABASE_CLI_VERSION: 2.122.1
+
+jobs:
+  naming:
+    name: Migration numbering
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Check NNN_name.sql numbering against the base branch
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # Label for fixing a migration that failed and rolled back (see docs/database-migrations.md).
+          ALLOW_EDITS: ${{ contains(github.event.pull_request.labels.*.name, 'allow-migration-edit') }}
+        run: |
+          if [ "$ALLOW_EDITS" = "true" ]; then
+            node scripts/check-migrations.mjs "$BASE_SHA" --allow-edits
+          else
+            node scripts/check-migrations.mjs "$BASE_SHA"
+          fi
+
+  # Shows which migrations production would receive if this PR merged now.
+  # Uses SUPABASE_DRY_RUN_DB_URL: a connection string for a read-only role that can only SELECT
+  # supabase_migrations.schema_migrations, so even a modified workflow on a PR branch cannot
+  # change production. The deploy secrets live in the 'production' environment and are not
+  # exposed to PRs. The schema itself is exercised by the PGlite tests in `npm test` (CI workflow).
+  dry-run:
+    name: Production dry run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DRY_RUN_DB_URL: ${{ secrets.SUPABASE_DRY_RUN_DB_URL }}
+    steps:
+      - name: Check secret
+        id: secret
+        run: |
+          if [ -z "$DRY_RUN_DB_URL" ]; then
+            msg="Skipping production dry run: SUPABASE_DRY_RUN_DB_URL is not available (not configured, or this PR comes from a fork). See docs/database-migrations.md."
+            echo "::notice::$msg"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: steps.secret.outputs.configured == 'true'
+
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
+        if: steps.secret.outputs.configured == 'true'
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Migration list
+        if: steps.secret.outputs.configured == 'true'
+        run: supabase migration list --db-url "$DRY_RUN_DB_URL"
+
+      - name: Migrations that would be applied
+        if: steps.secret.outputs.configured == 'true'
+        run: |
+          set -o pipefail
+          supabase db push --dry-run --skip-vault --db-url "$DRY_RUN_DB_URL" 2>&1 | tee dry-run.txt
+          {
+            echo "### Production dry run"
+            echo '```'
+            cat dry-run.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
