@@ -52,7 +52,9 @@ it("parses status params, accepting both spellings and the legacy value", () => 
   expect(sessionListFilter("upcoming")).toBe("upcoming");
   expect(sessionListFilter("cancelled")).toBe("canceled");
   expect(sessionListFilter("canceled")).toBe("canceled");
-  expect(sessionListFilter("completed")).toBe("completed");
+  expect(sessionListFilter("completed")).toBe("past");
+  expect(sessionListFilter("past")).toBe("past");
+  expect(sessionFilterParam("past")).toBe("past");
   expect(sessionFilterParam("upcoming")).toBeUndefined();
   expect(sessionFilterParam("all")).toBe("all");
   expect(sessionFilterParam("canceled")).toBe("canceled");
@@ -81,22 +83,72 @@ it("lists upcoming scheduled nights soonest first and excludes past unlogged nig
   expect(days(page1.items)).not.toContain("2026-09-25"); // the unlogged past night
 });
 
-it("lists completed and canceled nights most recent first", () => {
+it("lists past and canceled nights most recent first", () => {
   const sessions = seedNights();
-  for (const [filter, status] of [
-    ["completed", "completed"],
-    ["canceled", "cancelled"],
+  for (const [filter, matches] of [
+    ["past", (s: ReadingSession) => s.status !== "cancelled" && s.scheduledFor < TODAY],
+    ["canceled", (s: ReadingSession) => s.status === "cancelled"],
   ] as const) {
     const page = store.getFamilySessionPage("1", filter, TODAY);
     const expected = sessions
-      .filter((s) => s.status === status)
+      .filter(matches)
       .map((s) => s.scheduledFor.slice(0, 10))
       .sort()
       .reverse()
       .slice(0, 10);
-    expect(page.items.every((s) => s.status === status)).toBe(true);
+    expect(page.items.every(matches)).toBe(true);
     expect(days(page.items)).toEqual(expected);
   }
+});
+
+it("counts an unlogged past night as past, and tonight as coming up", () => {
+  seedNights();
+  const pages = [1, 2].map((n) => store.getFamilySessionPage(String(n), "past", TODAY));
+  const past = pages.flatMap((p) => days(p.items));
+  expect(past).toContain("2026-09-25"); // scheduled, never logged
+  expect(past).not.toContain(TODAY);
+  expect(days(store.getFamilySessionPage("1", "upcoming", TODAY).items)).toContain(TODAY);
+});
+
+it("puts a completed future night under past and never a canceled one", () => {
+  const sessions: ReadingSession[] = [
+    {
+      ...seedNights()[0],
+      id: "a",
+      status: "completed",
+      scheduledFor: "2026-10-06T19:30:00",
+    },
+    {
+      ...seedNights()[0],
+      id: "b",
+      status: "cancelled",
+      scheduledFor: "2026-09-01T19:30:00",
+    },
+    {
+      ...seedNights()[0],
+      id: "c",
+      status: "scheduled",
+      scheduledFor: "2026-09-02T19:30:00",
+    },
+    {
+      ...seedNights()[0],
+      id: "d",
+      status: "scheduled",
+      scheduledFor: `${TODAY}T19:30:00`,
+    },
+  ];
+  const ids = (filter: "upcoming" | "past" | "canceled" | "all") =>
+    filterSessionsForList(sessions, filter, TODAY).items.map((s) => s.id);
+  expect(ids("upcoming")).toEqual(["d"]);
+  expect(ids("past")).toEqual(["a", "c"]);
+  expect(ids("canceled")).toEqual(["b"]);
+  expect(ids("all")).toEqual(["d", "a", "c", "b"]);
+  expect(filterSessionsForList(sessions, "all", TODAY).counts).toEqual({
+    upcoming: 1,
+    past: 2,
+    canceled: 1,
+    all: 4,
+  });
 });
 
 it("lists all nights as upcoming first, then everything else newest first", () => {
@@ -123,7 +175,8 @@ it("returns per-filter counts and clamps out-of-range pages", () => {
     all: 30,
     upcoming: sessions.filter((s) => s.status === "scheduled" && s.scheduledFor >= TODAY)
       .length,
-    completed: sessions.filter((s) => s.status === "completed").length,
+    past: sessions.filter((s) => s.status !== "cancelled" && s.scheduledFor < TODAY)
+      .length,
     canceled,
   });
   expect(

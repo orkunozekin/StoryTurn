@@ -1,8 +1,11 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sendSessionInviteEmail } from "@/lib/session-mail";
 import {
   addBookFromSearch,
   cascadeInsertReader,
+  completeAllPastSessions,
+  getDashboard,
+  completePastSessions,
   ensureAllUpcomingSessions,
   saveSchedule,
   getFamilySessionPage,
@@ -16,6 +19,7 @@ const fixture = vi.hoisted(() => ({
   changes: [] as Row[],
   beforeQuery: undefined as undefined | ((table: string) => Promise<void>),
   ranges: [] as { table: string; start: number; end: number }[],
+  updates: [] as { table: string; count: number }[],
 }));
 function client() {
   return {
@@ -69,6 +73,7 @@ function client() {
       let limit = 1000;
       let offset = 0;
       let head = false;
+      let patch: Row | undefined;
       const ordering: { key: string; ascending: boolean }[] = [];
       const builder = {
         select: (_columns?: string, options?: { count?: string; head?: boolean }) => {
@@ -146,6 +151,10 @@ function client() {
           );
           return builder;
         },
+        update: (values: Row) => {
+          patch = values;
+          return builder;
+        },
         single: () => {
           one = true;
           return builder;
@@ -166,6 +175,10 @@ function client() {
               }
               return 0;
             });
+          if (patch) {
+            for (const row of matched) Object.assign(row, patch);
+            fixture.updates.push({ table, count: matched.length });
+          }
           const data = matched.slice(offset, offset + limit);
           return Promise.resolve({
             data: head ? null : one ? (data.at(-1) ?? null) : data,
@@ -193,6 +206,7 @@ beforeEach(() => {
   fixture.changes = [];
   fixture.beforeQuery = undefined;
   fixture.ranges = [];
+  fixture.updates = [];
   fixture.tables = {
     schedules: [
       {
@@ -451,7 +465,30 @@ it("filters both session count and rows by status within the current family", as
     status: "completed",
     scheduled_for: "2040-01-01T19:30Z",
   });
-  const page = await getFamilySessionPage("2", "completed");
+  // Every night is before today, so the 17 unlogged ones count as past too.
+  const page = await getFamilySessionPage("4", "past");
+  expect(page).toMatchObject({ page: 4, pageCount: 4, total: 35 });
+  expect(page.items).toHaveLength(5);
+  expect(page.items.at(-1)?.id).toBe("filtered-00");
+  const upcoming = await getFamilySessionPage("1", "upcoming");
+  expect(upcoming.total).toBe(0);
+  expect(page.counts).toEqual({ upcoming: 0, past: 35, canceled: 0, all: 35 });
+});
+
+it("filters past rows to logged nights when every night is ahead", async () => {
+  fixture.tables.reading_sessions = Array.from({ length: 35 }, (_, i) => ({
+    id: `filtered-${String(i).padStart(2, "0")}`,
+    family_id: "family",
+    scheduled_for: new Date(Date.UTC(2030, 0, 1) + i * 86400000).toISOString(),
+    status: i % 2 === 0 ? "completed" : "scheduled",
+  }));
+  fixture.tables.reading_sessions.push({
+    id: "foreign",
+    family_id: "other",
+    status: "completed",
+    scheduled_for: "2040-01-01T19:30Z",
+  });
+  const page = await getFamilySessionPage("2", "past");
   expect(page).toMatchObject({ page: 2, pageCount: 2, total: 18 });
   expect(page.items).toHaveLength(8);
   expect(page.items.every((session) => session.status === "completed")).toBe(true);
@@ -494,11 +531,16 @@ it("returns each filter's rows in a sensible order with counts", async () => {
   expect(upcoming.items.map(day)[0]).toBe("2026-10-04"); // today leads
   expect(upcoming.items.map(day)).not.toContain("2026-09-22"); // past unlogged night
 
-  const completed = await getFamilySessionPage("1", "completed", "2026-10-04");
-  expect(completed.items.every((s) => s.status === "completed")).toBe(true);
-  expect(completed.items.map(day)).toEqual(
-    [...completed.items.map(day)].sort().reverse(),
+  const pastRows = fixture.tables.reading_sessions.filter(
+    (r) =>
+      r.status !== "cancelled" &&
+      (r.status === "completed" || String(r.scheduled_for) < "2026-10-04"),
   );
+  const past = await getFamilySessionPage("1", "past", "2026-10-04");
+  expect(past.total).toBe(pastRows.length);
+  expect(past.items.every((s) => s.status !== "cancelled")).toBe(true);
+  expect(past.items.map(day)).toContain("2026-09-22"); // past unlogged night
+  expect(past.items.map(day)).toEqual([...past.items.map(day)].sort().reverse());
 
   const canceled = await getFamilySessionPage("1", "canceled", "2026-10-04");
   expect(canceled.total).toBe(rowsFor("cancelled").length);
@@ -514,9 +556,10 @@ it("returns each filter's rows in a sensible order with counts", async () => {
   expect(upcoming.counts).toEqual({
     all: 30,
     upcoming: upcomingRows.length,
-    completed: rowsFor("completed").length,
+    past: pastRows.length,
     canceled: rowsFor("cancelled").length,
   });
+  expect(upcomingRows.length + pastRows.length + rowsFor("cancelled").length).toBe(30);
 });
 
 it("adds search results to the live library and reports barcode and title duplicates", async () => {
@@ -610,4 +653,120 @@ it("reads a book's whole history past the API row limit", async () => {
   expect(history.timesRead).toBe(1005);
   expect(history.lastRead?.sessionId).toBe("night-1004");
   expect(history.topReader?.count).toBe(1005);
+});
+
+describe("completing past sessions", () => {
+  const night = (id: string, family: string, day: string, status: string) => ({
+    id,
+    family_id: family,
+    scheduled_for: `${day}T19:30:00+00:00`,
+    status,
+  });
+  beforeEach(() => {
+    // 02:00Z on Oct 5 is still Oct 4 in Los Angeles; the default timezone family has no schedule.
+    fixture.tables.reading_sessions = [
+      night("past", "family", "2026-10-03", "scheduled"),
+      night("tonight", "family", "2026-10-04", "scheduled"),
+      night("future", "family", "2026-10-06", "scheduled"),
+      night("canceled", "family", "2026-10-01", "cancelled"),
+      night("logged", "family", "2026-10-02", "completed"),
+      night("other-past", "other", "2026-10-01", "scheduled"),
+    ];
+  });
+  const statuses = () =>
+    Object.fromEntries(fixture.tables.reading_sessions.map((r) => [r.id, r.status]));
+
+  it("marks only the signed-in family's past scheduled nights completed, without emails", async () => {
+    expect(await completePastSessions()).toBe(1);
+    expect(statuses()).toEqual({
+      past: "completed",
+      tonight: "scheduled",
+      future: "scheduled",
+      canceled: "cancelled",
+      logged: "completed",
+      "other-past": "scheduled",
+    });
+    expect(sendSessionInviteEmail).not.toHaveBeenCalled();
+    expect(fixture.tables.session_corrections ?? []).toEqual([]);
+  });
+
+  it("completes every family's past nights for the cron", async () => {
+    expect(await completeAllPastSessions()).toBe(2);
+    expect(statuses()).toMatchObject({
+      past: "completed",
+      tonight: "scheduled",
+      "other-past": "completed",
+    });
+    expect(sendSessionInviteEmail).not.toHaveBeenCalled();
+  });
+
+  it("chunks large updates and reads past the 1000-row cap", async () => {
+    fixture.tables.reading_sessions = Array.from({ length: 1200 }, (_, i) =>
+      night(`bulk-${String(i).padStart(4, "0")}`, "family", "2026-09-01", "scheduled"),
+    );
+    expect(await completeAllPastSessions()).toBe(1200);
+    expect(fixture.tables.reading_sessions.every((r) => r.status === "completed")).toBe(
+      true,
+    );
+    expect(fixture.updates.length).toBeGreaterThan(1);
+  });
+});
+
+it("uses the family's local date for dashboard stats, not UTC", async () => {
+  // 02:00 UTC on Oct 5 is still Oct 4 (19:00) in Los Angeles: tonight isn't read yet.
+  fixture.tables.reading_sessions = [
+    {
+      id: "tonight",
+      family_id: "family",
+      scheduled_for: "2026-10-04T19:30",
+      status: "scheduled",
+    },
+    {
+      id: "yesterday",
+      family_id: "family",
+      scheduled_for: "2026-10-03T19:30",
+      status: "scheduled",
+    },
+  ];
+  fixture.tables.session_assignments = [];
+  fixture.tables.session_books = [
+    { id: "sb1", session_id: "tonight", book_id: null, title_freeform: "Tonight's book" },
+    {
+      id: "sb2",
+      session_id: "yesterday",
+      book_id: null,
+      title_freeform: "Last night's book",
+    },
+  ];
+  const dash = await getDashboard({ type: "family" });
+  expect(dash?.stats.sessionsCompleted).toBe(1);
+  expect(dash?.stats.allTime.map((b) => b.title)).toEqual(["Last night's book"]);
+});
+
+it("reads every active schedule before completing nights, so each family keeps its timezone", async () => {
+  // 08:00 UTC Oct 5: Oct 5 in Los Angeles (the default) but still Oct 4 in Honolulu.
+  vi.setSystemTime(new Date("2026-10-05T08:00:00Z"));
+  const template = fixture.tables.schedules[0];
+  fixture.tables.schedules = Array.from({ length: 1000 }, (_, i) => ({
+    ...template,
+    id: `schedule-${String(i).padStart(4, "0")}`,
+    family_id: `family-${i}`,
+  }));
+  // Sorts after the first 1000 by id, so a single capped query would miss it.
+  fixture.tables.schedules.push({
+    ...template,
+    id: "schedule-zzzz",
+    family_id: "honolulu",
+    timezone: "Pacific/Honolulu",
+  });
+  fixture.tables.reading_sessions = [
+    {
+      id: "hnl-tonight",
+      family_id: "honolulu",
+      scheduled_for: "2026-10-04T19:30",
+      status: "scheduled",
+    },
+  ];
+  expect(await completeAllPastSessions()).toBe(0);
+  expect(fixture.tables.reading_sessions[0]?.status).toBe("scheduled");
 });

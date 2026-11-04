@@ -1,6 +1,6 @@
 import type { SessionStatus } from "@/lib/types";
 import { addDays } from "@/lib/domain/rotation";
-import { sessionDateKey } from "@/lib/domain/sessions";
+import { isPastNight, isUpcomingNight, sessionDateKey } from "@/lib/domain/sessions";
 import { dateInTimezone } from "@/lib/domain/timezones";
 
 export function sessionStatusFilter(
@@ -70,14 +70,14 @@ export function sessionPageNumbers(
 }
 
 /**
- * Filters for the schedule's "Reading nights" list. "upcoming" means scheduled nights
- * from today on; past nights that were never logged only show under "all".
+ * Filters for the schedule's "Reading nights" list: coming up, past (logged or dated
+ * before today), canceled, and all.
  */
-export type SessionListFilter = "all" | "upcoming" | "completed" | "canceled";
+export type SessionListFilter = "upcoming" | "past" | "canceled" | "all";
 
 export const SESSION_LIST_FILTERS = [
   "upcoming",
-  "completed",
+  "past",
   "canceled",
   "all",
 ] as const satisfies readonly SessionListFilter[];
@@ -85,15 +85,16 @@ export const SESSION_LIST_FILTERS = [
 export type SessionFilterCounts = Record<SessionListFilter, number>;
 
 /**
- * Parses `?status=`; accepts both spellings of canceled and the legacy "scheduled".
- * With no (or an unknown) value the list shows upcoming nights.
+ * Parses `?status=`; accepts both spellings of canceled, the legacy "completed" (past)
+ * and "scheduled" (upcoming). With no (or an unknown) value the list shows upcoming nights.
  */
 export function sessionListFilter(value?: string | string[]): SessionListFilter {
   switch (value) {
     case "all":
       return "all";
+    case "past":
     case "completed":
-      return "completed";
+      return "past";
     case "canceled":
     case "cancelled":
       return "canceled";
@@ -112,16 +113,9 @@ export function sessionDayStart(today: string): string {
   return `${today}T00:00:00Z`;
 }
 
-function isUpcoming(
-  session: { status: SessionStatus; scheduledFor: string },
-  today: string,
-) {
-  return session.status === "scheduled" && sessionDateKey(session.scheduledFor) >= today;
-}
-
 /**
- * Filters and orders sessions for the list: upcoming nights soonest first, past or
- * finished nights most recent first. "all" shows upcoming nights before the rest.
+ * Filters and orders sessions for the list: upcoming nights soonest first, past and
+ * canceled nights most recent first. "all" shows upcoming nights before the rest.
  */
 export function filterSessionsForList<
   T extends { id: string; status: SessionStatus; scheduledFor: string },
@@ -129,25 +123,44 @@ export function filterSessionsForList<
   const ascending = (a: T, b: T) =>
     a.scheduledFor.localeCompare(b.scheduledFor) || a.id.localeCompare(b.id);
   const descending = (a: T, b: T) => ascending(b, a);
-  const upcoming = sessions.filter((s) => isUpcoming(s, today)).sort(ascending);
+  const upcoming = sessions.filter((s) => isUpcomingNight(s, today)).sort(ascending);
+  const past = sessions.filter((s) => isPastNight(s, today)).sort(descending);
+  const canceled = sessions.filter((s) => s.status === "cancelled").sort(descending);
   const counts: SessionFilterCounts = {
-    all: sessions.length,
     upcoming: upcoming.length,
-    completed: sessions.filter((s) => s.status === "completed").length,
-    canceled: sessions.filter((s) => s.status === "cancelled").length,
+    past: past.length,
+    canceled: canceled.length,
+    all: sessions.length,
   };
-  const byStatus = (status: SessionStatus) =>
-    sessions.filter((s) => s.status === status).sort(descending);
   const items =
     filter === "upcoming"
       ? upcoming
-      : filter === "completed"
-        ? byStatus("completed")
+      : filter === "past"
+        ? past
         : filter === "canceled"
-          ? byStatus("cancelled")
+          ? canceled
           : [
               ...upcoming,
-              ...sessions.filter((s) => !isUpcoming(s, today)).sort(descending),
+              ...sessions.filter((s) => !isUpcomingNight(s, today)).sort(descending),
             ];
   return { items, counts };
+}
+
+/**
+ * Status choices for a night's edit form. A coming-up night can stay coming up or be
+ * canceled; a past night is past or canceled (reopening a canceled past night lands on
+ * past). Keeps `assertTransition` valid: completed never returns to scheduled.
+ */
+export function sessionStatusOptions(
+  session: { status: SessionStatus; scheduledFor: string },
+  today: string,
+): { value: SessionStatus; label: string }[] {
+  const past =
+    session.status === "completed" || sessionDateKey(session.scheduledFor) < today;
+  return [
+    past
+      ? { value: "completed", label: "Past" }
+      : { value: "scheduled", label: "Coming up" },
+    { value: "cancelled", label: "Canceled" },
+  ];
 }

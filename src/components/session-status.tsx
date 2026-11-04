@@ -9,6 +9,13 @@ const colors: Record<SessionStatus, string> = {
   cancelled: "border-destructive/45 bg-destructive/15 text-status-cancelled",
 };
 
+const labels: Record<SessionStatus, string> = {
+  scheduled: "Coming up",
+  completed: "Past",
+  cancelled: "Canceled",
+};
+
+/** Pass the effective status (see `effectiveStatus`) so unlogged past nights read "Past". */
 export function SessionStatusBadge({
   status,
   className,
@@ -16,11 +23,7 @@ export function SessionStatusBadge({
   status: SessionStatus;
   className?: string;
 }) {
-  return (
-    <Badge className={cn(colors[status], className)}>
-      {status === "cancelled" ? "Canceled" : status[0].toUpperCase() + status.slice(1)}
-    </Badge>
-  );
+  return <Badge className={cn(colors[status], className)}>{labels[status]}</Badge>;
 }
 
 const requestColors: Record<SessionReaderRequestStatus, string> = {

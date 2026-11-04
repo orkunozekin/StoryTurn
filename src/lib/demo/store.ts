@@ -24,6 +24,7 @@ import {
 import {
   assertTransition,
   buildIcsUid,
+  effectiveStatus,
   generateSessionsFromSchedule,
   isPastSession,
   nextSessionForMember,
@@ -832,6 +833,25 @@ export function getHomeContext() {
   };
 }
 
+/**
+ * Marks the family's scheduled nights dated before its today as completed. A plain
+ * status update: no emails, calendar updates or corrections history.
+ */
+export function completePastSessions(now = new Date()): number {
+  const member = getCurrentMember();
+  if (!member) return 0;
+  const today = formatDateOnlyInTimeZone(now, familyTimezone(member.familyId));
+  let completed = 0;
+  for (const session of state().sessions) {
+    if (session.familyId !== member.familyId) continue;
+    if (effectiveStatus(session, today) !== session.status) {
+      session.status = "completed";
+      completed += 1;
+    }
+  }
+  return completed;
+}
+
 export function listFamilySessions() {
   const member = getCurrentMember();
   if (!member) return [];
@@ -998,6 +1018,8 @@ export function getDashboard(filter: DashboardFilter) {
       sessionBooks: state().sessionBooks,
       books: state().books.filter((b) => b.familyId === familyId),
       filter,
+      // The family's local date, so tonight isn't counted as read after UTC midnight.
+      nowIso: formatDateOnlyInTimeZone(new Date(), familyTimezone(familyId)),
     }),
     readers: state().members.filter((m) => m.familyId === familyId),
     member,

@@ -31,7 +31,8 @@ import {
   formatRelativeSessionWhen,
 } from "@/lib/domain/dates";
 import { SESSION_BOOK_PICK_COUNT } from "@/lib/domain/session-books";
-import { isPastSession } from "@/lib/domain/sessions";
+import { sessionStatusOptions } from "@/lib/domain/session-presentation";
+import { effectiveStatus, isPastSession } from "@/lib/domain/sessions";
 import {
   getCurrentMember,
   getCurrentUser,
@@ -93,6 +94,8 @@ export default async function SessionPage({
     sessionId: id,
   });
   const past = isPastSession(detail.session.scheduledFor);
+  const shownStatus = effectiveStatus(detail.session, today);
+  const statusOptions = sessionStatusOptions(detail.session, today);
   const currentIds = new Set(
     detail.assignments.filter((a) => a.isCurrent).map((a) => a.memberId),
   );
@@ -107,11 +110,11 @@ export default async function SessionPage({
         <BackLink compact />
         <section className="animate-rise">
           <div className="flex flex-wrap items-center gap-2">
-            <SessionStatusBadge status={detail.session.status} />
+            <SessionStatusBadge status={shownStatus} />
             {detail.session.status === "cancelled" && (
               <ConfirmationForm
                 title="Reactivate this session?"
-                description={`This night will return to Scheduled with its readers, books, and notes preserved. ${past ? "No calendar invitations will be sent for this past session." : "Calendar invitations will be sent again."}`}
+                description={`This night will return to ${statusOptions[0].label} with its readers, books, and notes preserved. ${past ? "No calendar invitations will be sent for this past session." : "Calendar invitations will be sent again."}`}
                 confirmLabel="Reactivate session"
                 confirmVariant="default"
                 action={async () => {
@@ -188,24 +191,24 @@ export default async function SessionPage({
           </section>
         )}
 
-        {detail.library.length > 0 &&
-          detail.session.status === "scheduled" &&
-          !past && (
-            <ToastForm
-              action={shuffleSessionBooksAction}
-              successMessage={`Picked ${Math.min(SESSION_BOOK_PICK_COUNT, detail.library.length)} new books`}
-              className="story-panel mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-5"
-            >
-              <div>
-                <h2 className="font-display text-xl">Shuffle tonight&apos;s books</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Replace the library picks on this night with a fresh random set.
-                </p>
-              </div>
-              <input type="hidden" name="sessionId" value={id} />
-              <Button type="submit" variant="secondary">Shuffle books</Button>
-            </ToastForm>
-          )}
+        {detail.library.length > 0 && detail.session.status === "scheduled" && !past && (
+          <ToastForm
+            action={shuffleSessionBooksAction}
+            successMessage={`Picked ${Math.min(SESSION_BOOK_PICK_COUNT, detail.library.length)} new books`}
+            className="story-panel mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-5"
+          >
+            <div>
+              <h2 className="font-display text-xl">Shuffle tonight&apos;s books</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Replace the library picks on this night with a fresh random set.
+              </p>
+            </div>
+            <input type="hidden" name="sessionId" value={id} />
+            <Button type="submit" variant="secondary">
+              Shuffle books
+            </Button>
+          </ToastForm>
+        )}
 
         <ConfirmationForm
           title={
@@ -312,12 +315,8 @@ export default async function SessionPage({
             <FormSelect
               id="status"
               name="status"
-              defaultValue={detail.session.status}
-              options={[
-                { value: "scheduled", label: "Scheduled" },
-                { value: "completed", label: "Completed" },
-                { value: "cancelled", label: "Canceled" },
-              ]}
+              defaultValue={shownStatus}
+              options={statusOptions}
             />
           </div>
 
@@ -338,9 +337,7 @@ export default async function SessionPage({
           </div>
         </ConfirmationForm>
 
-        {detail.session.status !== "cancelled" && (
-          <CancelSessionForm sessionId={id} />
-        )}
+        {detail.session.status !== "cancelled" && <CancelSessionForm sessionId={id} />}
       </main>
     </div>
   );

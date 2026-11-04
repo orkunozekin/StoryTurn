@@ -110,3 +110,23 @@ export function assertTransition(from: SessionStatus, to: SessionStatus): void {
     throw new Error("Completed sessions cannot return to scheduled");
   }
 }
+
+type DatedStatus = { status: SessionStatus; scheduledFor: string };
+
+/** Coming up: scheduled and dated today (the family's local date) or later. */
+export function isUpcomingNight(session: DatedStatus, today: string): boolean {
+  return session.status === "scheduled" && sessionDateKey(session.scheduledFor) >= today;
+}
+
+/** Past: not cancelled, and either logged or dated before today. */
+export function isPastNight(session: DatedStatus, today: string): boolean {
+  if (session.status === "cancelled") return false;
+  return session.status === "completed" || sessionDateKey(session.scheduledFor) < today;
+}
+
+/** A scheduled night before today counts as completed; otherwise the stored status. */
+export function effectiveStatus(session: DatedStatus, today: string): SessionStatus {
+  return session.status === "scheduled" && sessionDateKey(session.scheduledFor) < today
+    ? "completed"
+    : session.status;
+}

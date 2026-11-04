@@ -110,6 +110,11 @@ export async function ensureUpcomingSessions(daysAhead = 14) {
     : live.ensureAllUpcomingSessions(daysAhead);
 }
 
+/** Past scheduled nights become completed (no emails or calendar updates). */
+export async function completePastSessions() {
+  return isDemoMode() ? demo.completePastSessions() : live.completeAllPastSessions();
+}
+
 export function countOutboundEmails(): number {
   return isDemoMode() ? demo.getDemoState().outboundEmails.length : 0;
 }

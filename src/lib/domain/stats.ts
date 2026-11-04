@@ -6,7 +6,7 @@ import type {
   SessionAssignment,
   SessionBook,
 } from "@/lib/types";
-import { sessionDateKey } from "@/lib/domain/sessions";
+import { effectiveStatus, sessionDateKey } from "@/lib/domain/sessions";
 
 export interface BookReadStat {
   title: string;
@@ -28,8 +28,11 @@ function sessionsMatchingFilter(params: {
   sessions: ReadingSession[];
   assignments: SessionAssignment[];
   filter: DashboardFilter;
+  today: string;
 }): ReadingSession[] {
-  const completed = params.sessions.filter((s) => s.status === "completed");
+  const completed = params.sessions.filter(
+    (s) => effectiveStatus(s, params.today) === "completed",
+  );
   if (params.filter.type === "family") {
     return completed;
   }
@@ -57,7 +60,7 @@ export function computeDashboardStats(params: {
   cutoff.setUTCDate(cutoff.getUTCDate() - recentDays);
   const cutoffKey = cutoff.toISOString().slice(0, 10);
 
-  const matched = sessionsMatchingFilter(params);
+  const matched = sessionsMatchingFilter({ ...params, today: nowDay });
   const matchedIds = new Set(matched.map((s) => s.id));
   const bookById = new Map(params.books.map((b) => [b.id, b]));
 

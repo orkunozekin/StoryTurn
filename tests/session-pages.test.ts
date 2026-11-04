@@ -161,22 +161,22 @@ it("filters before pagination and preserves status in page links", async () => {
     ...template,
     id: `filtered-${i}`,
     status: i % 2 === 0 ? "completed" : "scheduled",
-    scheduledFor: new Date(Date.UTC(2026, 0, 1) + i * 86400000).toISOString(),
+    // Far ahead, so only the logged nights count as past.
+    scheduledFor: new Date(Date.UTC(2030, 0, 1) + i * 86400000).toISOString(),
   }));
+  // The legacy ?status=completed maps to the past filter.
   const html = renderToStaticMarkup(
     await SchedulePage({
       searchParams: Promise.resolve({ status: "completed", page: "2" }),
     }),
   );
   expect(html).toContain("Page 2 of 2");
-  expect(html).toContain("18 nights");
-  expect(html).toContain("/schedule?page=1&amp;status=completed");
+  expect(html).toContain("18 past nights");
+  expect(html).toContain("/schedule?page=1&amp;status=past");
   expect((html.match(/href="\/sessions\//g) ?? []).length).toBe(8);
   expect(html).toContain("/sessions/filtered-0");
   expect(html).not.toContain('/sessions/filtered-1"');
-  expect(html).toMatch(
-    /aria-current="page" href="\/schedule\?status=completed">Completed/,
-  );
+  expect(html).toMatch(/aria-current="page" href="\/schedule\?status=past">Past/);
 });
 
 it("shows filtered empty states and ignores invalid status values", async () => {
@@ -213,7 +213,7 @@ it("renders filter pills with counts that link back to page 1", async () => {
   ];
   expect(links.map((m) => [m[2], Number(m[3])])).toEqual([
     ["Coming up", 15],
-    ["Completed", 10],
+    ["Past", 10],
     ["Canceled", 0],
     ["All", 25],
   ]);
