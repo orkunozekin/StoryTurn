@@ -26,7 +26,9 @@ it("explains mixed logging instead of forcing one timing choice", async () => {
     await SchedulePage({ searchParams: Promise.resolve({}) }),
   );
   expect(html).not.toContain('name="bookTiming"');
-  expect(html).toContain("Choose books before reading, log them afterward, or do both.");
+  // The explanation now lives in an info tooltip next to the random-books option.
+  expect(html).toContain('aria-label="How book assignments work"');
+  expect(html).not.toContain("Bedtime uses your device");
 });
 it("keeps planned books while adding library and freeform books after reading", async () => {
   const session = store.getHomeContext().nextSession!;

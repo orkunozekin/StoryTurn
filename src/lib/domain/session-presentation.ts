@@ -76,33 +76,35 @@ export function sessionPageNumbers(
 export type SessionListFilter = "all" | "upcoming" | "completed" | "canceled";
 
 export const SESSION_LIST_FILTERS = [
-  "all",
   "upcoming",
   "completed",
   "canceled",
+  "all",
 ] as const satisfies readonly SessionListFilter[];
 
 export type SessionFilterCounts = Record<SessionListFilter, number>;
 
-/** Parses `?status=`; accepts both spellings of canceled and the legacy "scheduled". */
+/**
+ * Parses `?status=`; accepts both spellings of canceled and the legacy "scheduled".
+ * With no (or an unknown) value the list shows upcoming nights.
+ */
 export function sessionListFilter(value?: string | string[]): SessionListFilter {
   switch (value) {
-    case "upcoming":
-    case "scheduled":
-      return "upcoming";
+    case "all":
+      return "all";
     case "completed":
       return "completed";
     case "canceled":
     case "cancelled":
       return "canceled";
     default:
-      return "all";
+      return "upcoming";
   }
 }
 
-/** The `?status=` value for a filter, or undefined for "all". */
+/** The `?status=` value for a filter, or undefined for the default (upcoming). */
 export function sessionFilterParam(filter: SessionListFilter): string | undefined {
-  return filter === "all" ? undefined : filter;
+  return filter === "upcoming" ? undefined : filter;
 }
 
 /** Start of the family's local day in the wall-clock-as-UTC format sessions use. */
@@ -110,7 +112,10 @@ export function sessionDayStart(today: string): string {
   return `${today}T00:00:00Z`;
 }
 
-function isUpcoming(session: { status: SessionStatus; scheduledFor: string }, today: string) {
+function isUpcoming(
+  session: { status: SessionStatus; scheduledFor: string },
+  today: string,
+) {
   return session.status === "scheduled" && sessionDateKey(session.scheduledFor) >= today;
 }
 
@@ -140,6 +145,9 @@ export function filterSessionsForList<
         ? byStatus("completed")
         : filter === "canceled"
           ? byStatus("cancelled")
-          : [...upcoming, ...sessions.filter((s) => !isUpcoming(s, today)).sort(descending)];
+          : [
+              ...upcoming,
+              ...sessions.filter((s) => !isUpcoming(s, today)).sort(descending),
+            ];
   return { items, counts };
 }

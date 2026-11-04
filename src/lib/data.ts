@@ -42,6 +42,12 @@ export async function getBook(id: string) {
   return isDemoMode() ? demo.getBook(id) : live.getBook(id);
 }
 
+export async function getBookHistory(bookId: string, today: string) {
+  return isDemoMode()
+    ? demo.getBookHistory(bookId, today)
+    : live.getBookHistory(bookId, today);
+}
+
 export async function getDashboard(filter: DashboardFilter) {
   return isDemoMode() ? demo.getDashboard(filter) : live.getDashboard(filter);
 }

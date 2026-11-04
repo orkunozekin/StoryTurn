@@ -1,3 +1,4 @@
+import { computeBookHistory } from "@/lib/domain/book-history";
 import { librarySearchTerm, type LibraryPage } from "@/lib/domain/library-page";
 import {
   sessionDayStart,
@@ -395,6 +396,61 @@ export async function getBook(id: string): Promise<Book | null> {
     .maybeSingle();
   assertNoError(error, "Could not load book");
   return data ? mapBook(data as Row) : null;
+}
+
+export async function getBookHistory(bookId: string, today: string) {
+  const { supabase, member } = requireMember(await loadContext());
+  const links = await rows(
+    supabase.from("session_books").select("*").eq("book_id", bookId),
+    mapSessionBook,
+    "Could not load book history",
+  );
+  const sessionIds = [...new Set(links.map((link) => link.sessionId))];
+  if (sessionIds.length === 0) {
+    return computeBookHistory({
+      bookId,
+      sessions: [],
+      assignments: [],
+      sessionBooks: [],
+      books: [],
+      members: [],
+      today,
+    });
+  }
+  const [sessions, assignments, sessionBooks, members] = await Promise.all([
+    rows(
+      supabase
+        .from("reading_sessions")
+        .select("*")
+        .eq("family_id", member.familyId)
+        .in("id", sessionIds),
+      mapSession,
+      "Could not load sessions",
+    ),
+    assignmentsForSessions(supabase, sessionIds),
+    rows(
+      supabase.from("session_books").select("*").in("session_id", sessionIds),
+      mapSessionBook,
+      "Could not load session books",
+    ),
+    familyReaders(supabase, member.familyId),
+  ]);
+  const otherBookIds = [
+    ...new Set(sessionBooks.flatMap((sb) => (sb.bookId && sb.bookId !== bookId ? [sb.bookId] : []))),
+  ];
+  const books =
+    otherBookIds.length === 0
+      ? []
+      : await rows(
+          supabase
+            .from("books")
+            .select("*")
+            .eq("family_id", member.familyId)
+            .in("id", otherBookIds),
+          mapBook,
+          "Could not load books",
+        );
+  return computeBookHistory({ bookId, sessions, assignments, sessionBooks, books, members, today });
 }
 
 export async function getLibrary(): Promise<Book[]> {

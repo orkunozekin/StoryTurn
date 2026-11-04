@@ -44,15 +44,17 @@ function seedNights() {
 const days = (items: ReadingSession[]) => items.map((s) => s.scheduledFor.slice(0, 10));
 
 it("parses status params, accepting both spellings and the legacy value", () => {
-  expect(sessionListFilter(undefined)).toBe("all");
-  expect(sessionListFilter("bogus")).toBe("all");
-  expect(sessionListFilter(["completed", "scheduled"])).toBe("all");
+  expect(sessionListFilter(undefined)).toBe("upcoming");
+  expect(sessionListFilter("bogus")).toBe("upcoming");
+  expect(sessionListFilter(["completed", "scheduled"])).toBe("upcoming");
+  expect(sessionListFilter("all")).toBe("all");
   expect(sessionListFilter("scheduled")).toBe("upcoming");
   expect(sessionListFilter("upcoming")).toBe("upcoming");
   expect(sessionListFilter("cancelled")).toBe("canceled");
   expect(sessionListFilter("canceled")).toBe("canceled");
   expect(sessionListFilter("completed")).toBe("completed");
-  expect(sessionFilterParam("all")).toBeUndefined();
+  expect(sessionFilterParam("upcoming")).toBeUndefined();
+  expect(sessionFilterParam("all")).toBe("all");
   expect(sessionFilterParam("canceled")).toBe("canceled");
 });
 

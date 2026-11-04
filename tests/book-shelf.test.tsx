@@ -102,9 +102,26 @@ it("clears list selections when the filter changes so hidden books are never rem
 
 it("falls back to All when the selected format no longer exists", () => {
   const { rerender } = render(createElement(BookShelf, { books }));
-  fireEvent.click(screen.getByRole("button", { name: "Board book" }));
+  fireEvent.click(screen.getByRole("button", { name: "Board Book" }));
   expect(spine("Owl Babies").className).toContain("is-dimmed");
   rerender(createElement(BookShelf, { books: books.filter((b) => b.id !== "a") }));
   expect(spine("Owl Babies").className).not.toContain("is-dimmed");
   expect(spine("Stick Man").className).not.toContain("is-dimmed");
+});
+
+it("treats formats with different capitalisation or spacing as one", () => {
+  const mixed = [
+    book("a", "Wacky Wednesday", [], "paperback"),
+    book("b", "Don't Trust Fish!", [], "Paperback"),
+    book("c", "Together", [], " PAPERBACK "),
+    book("d", "Animal Families", [], "hardcover"),
+  ];
+  render(createElement(BookShelf, { books: mixed }));
+  const chips = screen.getAllByRole("button").filter((b) => b.className.includes("chip"));
+  expect(chips.map((c) => c.textContent)).toEqual(["All", "Hardcover", "Paperback"]);
+  fireEvent.click(screen.getByRole("button", { name: "Paperback" }));
+  expect(spine("Wacky Wednesday").className).not.toContain("is-dimmed");
+  expect(spine("Don't Trust Fish!").className).not.toContain("is-dimmed");
+  expect(spine("Together").className).not.toContain("is-dimmed");
+  expect(spine("Animal Families").className).toContain("is-dimmed");
 });
