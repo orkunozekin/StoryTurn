@@ -206,3 +206,65 @@ export function assertWeekdayPlan(params: {
   }
   return plan.map(String);
 }
+
+/**
+ * Ready-made plans for the schedule wizard, so a family can pick "how" without
+ * filling in seven nights. Each one is an ordinary weekday plan underneath.
+ * - `every-night`: everyone in the rotation takes a turn, night after night.
+ * - `weekend-reader`: weeknights rotate; one reader always has Saturday and Sunday.
+ */
+export const SCHEDULE_PATTERNS = ["every-night", "weekend-reader"] as const;
+export type SchedulePattern = (typeof SCHEDULE_PATTERNS)[number];
+
+const SATURDAY = 5;
+const SUNDAY = 6;
+
+export function patternPlan(
+  pattern: SchedulePattern,
+  weekendReaderId?: string,
+): WeekdaySlot[] {
+  if (pattern === "every-night" || !weekendReaderId) return [...ALL_ROTATE];
+  return Array.from({ length: WEEKDAY_COUNT }, (_, index) =>
+    index === SATURDAY || index === SUNDAY ? weekendReaderId : ROTATE,
+  );
+}
+
+/** Which ready-made pattern a saved plan matches, or null for a hand-picked week. */
+export function matchPattern(
+  plan: WeekdayPlan,
+): { pattern: SchedulePattern; weekendReaderId?: string } | null {
+  if (plan.every((slot) => slot === ROTATE)) return { pattern: "every-night" };
+  const weekend = plan[SATURDAY];
+  const weekdaysRotate = plan.slice(0, SATURDAY).every((slot) => slot === ROTATE);
+  if (weekdaysRotate && weekend && weekend !== ROTATE && plan[SUNDAY] === weekend) {
+    return { pattern: "weekend-reader", weekendReaderId: weekend };
+  }
+  return null;
+}
+
+/**
+ * The first rotate night after the start date goes to `pool[0]`, so choosing who
+ * starts means turning the pool until they are first. The order after them stays.
+ */
+export function poolStartingWith(pool: readonly string[], starterId: string): string[] {
+  const start = pool.indexOf(starterId);
+  if (start <= 0) return [...pool];
+  return [...pool.slice(start), ...pool.slice(0, start)];
+}
+
+/** One line for the schedule page, e.g. "Take turns every night". */
+export function describeWeekdayPlan(
+  plan: WeekdayPlan,
+  names: Record<string, string>,
+): string {
+  const matched = matchPattern(plan);
+  if (matched?.pattern === "every-night") return "Take turns every night";
+  if (matched?.pattern === "weekend-reader") {
+    const reader = names[matched.weekendReaderId ?? ""] ?? "One reader";
+    return `Take turns on weeknights · ${reader} reads on weekends`;
+  }
+  const fixed = plan.filter((slot) => slot !== ROTATE).length;
+  return fixed === WEEKDAY_COUNT
+    ? "A fixed reader every night"
+    : `Rotate, with ${fixed} fixed ${fixed === 1 ? "night" : "nights"} a week`;
+}

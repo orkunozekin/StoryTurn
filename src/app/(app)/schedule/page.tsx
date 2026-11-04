@@ -1,7 +1,11 @@
 import { NativeSelect } from "@/components/ui/native-select";
-import { ChoiceChip } from "@/components/ui/choice-chip";
-import { WeekdayPlanFields } from "@/components/weekday-plan-fields";
-import { defaultRotationPool, effectiveWeekdayPlan } from "@/lib/domain/weekday-plan";
+import { ScheduleWizard } from "@/components/schedule-wizard";
+import {
+  defaultRotationPool,
+  describeWeekdayPlan,
+  effectivePool,
+  effectiveWeekdayPlan,
+} from "@/lib/domain/weekday-plan";
 import {
   SESSION_LIST_FILTERS,
   sessionFilterParam,
@@ -24,9 +28,7 @@ import {
   ShuffleUpcomingBooksForm,
 } from "@/components/upcoming-books-forms";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeTimezoneForm } from "@/components/native-timezone-form";
 import {
   getCurrentMember,
   getCurrentUser,
@@ -43,6 +45,7 @@ import { myLatestRequest, pendingRequestViews } from "@/lib/reader-request-views
 import {
   DEFAULT_FAMILY_TIMEZONE,
   formatDateOnlyInTimeZone,
+  formatMonthDay,
   formatRelativeDay,
   formatRelativeSessionWhen,
 } from "@/lib/domain/dates";
@@ -53,7 +56,6 @@ import { sessionPageNumbers } from "@/lib/domain/session-presentation";
 import Link from "next/link";
 import { SessionStatusBadge } from "@/components/session-status";
 import { buttonVariants } from "@/components/ui/button";
-import { InfoTip } from "@/components/ui/info-tip";
 import "./schedule.css";
 
 const FILTER_LABELS: Record<SessionListFilter, string> = {
@@ -109,6 +111,13 @@ export default async function SchedulePage({
   const assignments = pagination.assignments;
   const sessions = pagination.items;
   const names = Object.fromEntries(admin.readers.map((r) => [r.id, r.displayName]));
+  const readerIds = admin.readers.map((reader) => reader.id);
+  const rotationNames = effectivePool(
+    admin.schedule?.readerRotationMemberIds ?? [],
+    readerIds,
+  )
+    .map((id) => names[id])
+    .join(" → ");
   // Cascade/swap need the full upcoming set, not just the current page.
   const [allSessions, allAssignments, bookCta, requests] = await Promise.all([
     listFamilySessions(),
@@ -150,89 +159,53 @@ export default async function SchedulePage({
         <PendingRequestList requests={pendingRequests} />
 
         {isOwner ? (
-          <NativeTimezoneForm
-            action={saveScheduleAction}
-            successMessage="Schedule saved"
-            celebrate
-          >
-            <h2 className="font-display text-xl">
-              {admin.schedule ? "Edit rotation" : "Create rotation"}
-            </h2>
-            <WeekdayPlanFields
+          <section className="story-panel mt-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl p-5 animate-rise-delay">
+            <div className="min-w-0 space-y-1">
+              <h2 className="font-display text-xl">
+                {admin.schedule ? "Your rotation" : "No schedule yet"}
+              </h2>
+              {admin.schedule ? (
+                <>
+                  <p className="font-bold">
+                    {describeWeekdayPlan(
+                      effectiveWeekdayPlan(admin.schedule.weekdayReaders, readerIds),
+                      names,
+                    )}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {rotationNames || "No one rotates"} · from{" "}
+                    {formatMonthDay(admin.schedule.startDate)} at{" "}
+                    {admin.schedule.timeLocal}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Choose who reads, how nights are shared, and when to start. We fill in
+                  the nights for you.
+                </p>
+              )}
+            </div>
+            <ScheduleWizard
+              action={saveScheduleAction}
+              editing={Boolean(admin.schedule)}
+              today={today}
               readers={admin.readers.map((reader) => ({
                 id: reader.id,
                 displayName: reader.displayName,
                 hint: `(${childRelationLabel(reader.relationToChildren)})`,
               }))}
-              defaultPool={
-                admin.schedule
-                  ? admin.schedule.readerRotationMemberIds
-                  : defaultRotationPool(admin.readers)
-              }
-              defaultPlan={effectiveWeekdayPlan(
-                admin.schedule?.weekdayReaders,
-                admin.readers.map((reader) => reader.id),
-              )}
-              defaultStartDate={admin.schedule?.startDate}
-              today={today}
+              defaults={{
+                pool: admin.schedule
+                  ? effectivePool(admin.schedule.readerRotationMemberIds, readerIds)
+                  : defaultRotationPool(admin.readers),
+                plan: effectiveWeekdayPlan(admin.schedule?.weekdayReaders, readerIds),
+                startDate: admin.schedule?.startDate ?? today,
+                timeLocal: admin.schedule?.timeLocal ?? "19:30",
+                booksPerSession: admin.schedule?.booksPerSession ?? 3,
+                assignRandomBooks: admin.schedule?.assignRandomBooks ?? true,
+              }}
             />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="startDate">Start date</Label>
-                <Input
-                  id="startDate"
-                  name="startDate"
-                  type="date"
-                  required
-                  defaultValue={admin.schedule?.startDate}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="timeLocal">Bedtime</Label>
-                <Input
-                  id="timeLocal"
-                  name="timeLocal"
-                  type="time"
-                  required
-                  defaultValue={admin.schedule?.timeLocal ?? "19:30"}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="booksPerSession">Books per session</Label>
-                <Input
-                  id="booksPerSession"
-                  name="booksPerSession"
-                  type="number"
-                  min={1}
-                  step={1}
-                  required
-                  defaultValue={admin.schedule?.booksPerSession ?? 3}
-                />
-              </div>
-              <div className="flex items-center gap-1 sm:col-span-2">
-                <ChoiceChip
-                  variant="row"
-                  name="assignRandomBooks"
-                  defaultChecked={admin.schedule?.assignRandomBooks ?? true}
-                  labelClassName="flex-1"
-                >
-                  Assign random books from the family library each night
-                </ChoiceChip>
-                <InfoTip label="How book assignments work">
-                  <p>
-                    Random assignments apply to new nights. If your library has fewer
-                    books, we use the available books. Existing selections stay as they
-                    are.
-                  </p>
-                  <p>
-                    Choose books before reading, log them afterward, or do both. You can
-                    update each night’s book list at any time.
-                  </p>
-                </InfoTip>
-              </div>
-            </div>
-            <Button type="submit">Save schedule</Button>
-          </NativeTimezoneForm>
+          </section>
         ) : (
           <p className="story-panel mt-6 rounded-2xl p-5 text-sm text-muted-foreground">
             Family owners manage the rotation. Your upcoming nights are listed below. Want
