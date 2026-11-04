@@ -47,6 +47,15 @@ import {
   SESSION_BOOK_PICK_COUNT,
   sessionHasLibraryBooks,
 } from "@/lib/domain/session-books";
+import {
+  approvalCorrectionReason,
+  canRequestNight,
+  normalizeRequestNote,
+  planRequestDecision,
+  planWithdraw,
+  withEffectiveStatus,
+  type RequestStatusChange,
+} from "@/lib/domain/reader-requests";
 import { createSeedState } from "@/lib/demo/seed";
 import { sendSessionInviteEmail } from "@/lib/session-mail";
 import type {
@@ -56,6 +65,7 @@ import type {
   FamilyMember,
   Kid,
   ReadingSession,
+  SessionReaderRequest,
   UserAccount,
 } from "@/lib/types";
 
@@ -116,6 +126,10 @@ function familyTimezone(familyId: string): string {
     state().schedules.find((s) => s.familyId === familyId && s.active)?.timezone ??
     DEFAULT_FAMILY_TIMEZONE
   );
+}
+
+function familyToday(familyId: string): string {
+  return formatDateOnlyInTimeZone(new Date(), familyTimezone(familyId));
 }
 
 function upcomingScheduledSessions(familyId: string): ReadingSession[] {
@@ -1232,4 +1246,180 @@ export function correctBookFormat(id: string, format: string) {
   const book = state().books.find((b) => b.id === id && b.familyId === member.familyId);
   if (!book || book.format) throw new Error("Book unavailable or format already set");
   book.format = format;
+}
+
+function readerRequests(): SessionReaderRequest[] {
+  // Older persisted demo states predate reader requests.
+  state().readerRequests ??= [];
+  return state().readerRequests;
+}
+
+/** Close pending requests whose night is past, canceled or completed. */
+function expireStaleRequests(familyId: string): void {
+  const today = familyToday(familyId);
+  const sessions = state().sessions.filter((s) => s.familyId === familyId);
+  const effective = withEffectiveStatus(
+    readerRequests().filter((r) => r.familyId === familyId),
+    sessions,
+    today,
+  );
+  const now = new Date().toISOString();
+  for (const next of effective) {
+    const stored = readerRequests().find((r) => r.id === next.id)!;
+    if (stored.status === "pending" && next.status === "expired") {
+      Object.assign(stored, { status: "expired", decidedAt: now });
+    }
+  }
+}
+
+function applyRequestChanges(changes: RequestStatusChange[]): void {
+  for (const change of changes) {
+    const stored = readerRequests().find((r) => r.id === change.id);
+    if (stored) {
+      Object.assign(stored, {
+        status: change.status,
+        decidedAt: change.decidedAt,
+        decidedByMemberId: change.decidedByMemberId,
+      });
+    }
+  }
+}
+
+/** Requests for the current family (optionally one night), newest first. */
+export function listReaderRequests(sessionId?: string): SessionReaderRequest[] {
+  const member = getCurrentMember();
+  if (!member) return [];
+  expireStaleRequests(member.familyId);
+  return readerRequests()
+    .filter(
+      (r) => r.familyId === member.familyId && (!sessionId || r.sessionId === sessionId),
+    )
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+    .map((r) => ({ ...r }));
+}
+
+export function requestToReadNight(
+  sessionId: string,
+  rawNote?: string | null,
+): SessionReaderRequest {
+  const member = getCurrentMember();
+  if (!member) throw new Error("Join a family first");
+  const note = normalizeRequestNote(rawNote);
+  const session = state().sessions.find(
+    (s) => s.id === sessionId && s.familyId === member.familyId,
+  );
+  if (!session) throw new Error("Night not found");
+  expireStaleRequests(member.familyId);
+  const check = canRequestNight({
+    member,
+    session,
+    assignments: state().assignments,
+    requests: readerRequests(),
+    today: familyToday(member.familyId),
+  });
+  if (!check.ok) throw new Error(check.reason);
+  const request: SessionReaderRequest = {
+    id: id("req"),
+    sessionId,
+    familyId: member.familyId,
+    memberId: member.id,
+    note,
+    status: "pending",
+    createdAt: new Date().toISOString(),
+    decidedAt: null,
+    decidedByMemberId: null,
+  };
+  readerRequests().push(request);
+  return { ...request };
+}
+
+export function withdrawReaderRequest(requestId: string): void {
+  const member = getCurrentMember();
+  if (!member) throw new Error("Join a family first");
+  expireStaleRequests(member.familyId);
+  const request = readerRequests().find(
+    (r) => r.id === requestId && r.familyId === member.familyId,
+  );
+  if (!request) throw new Error("Request not found");
+  applyRequestChanges([planWithdraw({ member, request })]);
+}
+
+/**
+ * Owner approves or declines a pending request. Approval makes the requester
+ * the night's reader, records a correction, sends calendar updates and closes
+ * any other pending requests for that night.
+ */
+export async function decideReaderRequest(
+  requestId: string,
+  approve: boolean,
+): Promise<void> {
+  const owner = requireOwner();
+  expireStaleRequests(owner.familyId);
+  const request = readerRequests().find(
+    (r) => r.id === requestId && r.familyId === owner.familyId,
+  );
+  if (!request) throw new Error("Request not found");
+  const session = state().sessions.find(
+    (s) => s.id === request.sessionId && s.familyId === owner.familyId,
+  );
+  if (!session) throw new Error("Night not found");
+  const plan = planRequestDecision({
+    decider: owner,
+    request,
+    session,
+    otherRequests: readerRequests().filter((r) => r.sessionId === session.id),
+    approve,
+    today: familyToday(owner.familyId),
+  });
+
+  if (plan.newReaderId) {
+    const requester = state().members.find((m) => m.id === plan.newReaderId);
+    const previousReaders = state()
+      .assignments.filter((a) => a.sessionId === session.id && a.isCurrent)
+      .map((a) => a.memberId)
+      .sort();
+    const titles = state()
+      .sessionBooks.filter((b) => b.sessionId === session.id)
+      .map(
+        (b) =>
+          b.titleFreeform ??
+          state().books.find((book) => book.id === b.bookId)?.title ??
+          "Unknown",
+      );
+    const before = {
+      status: session.status,
+      currentMemberIds: previousReaders,
+      bookTitles: titles,
+      notes: session.notes,
+    };
+    const after = { ...before, currentMemberIds: [plan.newReaderId] };
+    if (JSON.stringify(before) !== JSON.stringify(after)) {
+      state().assignments = applyReassignment({
+        existing: state().assignments,
+        sessionId: session.id,
+        newMemberIds: [plan.newReaderId],
+      });
+      const correction = buildCorrectionRecord({
+        sessionId: session.id,
+        correctedByMemberId: owner.id,
+        reason: approvalCorrectionReason(requester?.displayName ?? "Reader", request.note),
+        before,
+        after,
+      });
+      state().corrections.push({ id: id("cor"), ...correction });
+      session.calendarSequence = (session.calendarSequence ?? 0) + 1;
+      session.updatedAt = new Date().toISOString();
+      const removed = previousReaders.filter((m) => m !== plan.newReaderId);
+      applyRequestChanges(plan.changes);
+      if (removed.length) {
+        await sendSessionInvite(session.id, "CANCEL", {
+          memberIds: removed,
+          scheduledFor: session.scheduledFor,
+        });
+      }
+      await sendSessionInvite(session.id, "REQUEST");
+      return;
+    }
+  }
+  applyRequestChanges(plan.changes);
 }

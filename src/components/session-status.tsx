@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { SessionStatus } from "@/lib/types";
+import { readerRequestStatusLabel } from "@/lib/domain/reader-requests";
+import type { SessionReaderRequestStatus, SessionStatus } from "@/lib/types";
 
 const colors: Record<SessionStatus, string> = {
   scheduled: "border-accent/45 bg-accent/15 text-status-scheduled",
@@ -18,6 +19,28 @@ export function SessionStatusBadge({
   return (
     <Badge className={cn(colors[status], className)}>
       {status === "cancelled" ? "Canceled" : status[0].toUpperCase() + status.slice(1)}
+    </Badge>
+  );
+}
+
+const requestColors: Record<SessionReaderRequestStatus, string> = {
+  pending: "bg-accent/20 text-accent-foreground",
+  approved: "bg-secondary text-primary",
+  declined: "bg-destructive/10 text-destructive",
+  withdrawn: "bg-muted text-muted-foreground",
+  expired: "bg-muted text-muted-foreground",
+};
+
+export function ReaderRequestBadge({
+  status,
+  className,
+}: {
+  status: SessionReaderRequestStatus;
+  className?: string;
+}) {
+  return (
+    <Badge className={cn(requestColors[status], "whitespace-normal", className)}>
+      {readerRequestStatusLabel(status)}
     </Badge>
   );
 }

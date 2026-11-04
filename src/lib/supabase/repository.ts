@@ -36,6 +36,7 @@ import {
   sessionDateKey,
 } from "@/lib/domain/sessions";
 import { computeDashboardStats } from "@/lib/domain/stats";
+import { normalizeRequestNote, withEffectiveStatus } from "@/lib/domain/reader-requests";
 import { sendSessionInviteEmail } from "@/lib/session-mail";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -47,6 +48,7 @@ import {
   mapInvite,
   mapKid,
   mapMember,
+  mapReaderRequest,
   mapSchedule,
   mapSession,
   mapSessionBook,
@@ -64,6 +66,7 @@ import type {
   SessionAssignment,
   SessionBook,
   SessionCorrection,
+  SessionReaderRequest,
   UserAccount,
 } from "@/lib/types";
 
@@ -1401,4 +1404,116 @@ export async function reserveBookLookup() {
   const { data, error } = await supabase.rpc("reserve_book_lookup");
   assertNoError(error, "Book lookup is busy. Please retry shortly.");
   await new Promise((resolve) => setTimeout(resolve, data));
+}
+
+/** Requests for the current family (optionally one night), newest first. */
+export async function listReaderRequests(
+  sessionId?: string,
+): Promise<SessionReaderRequest[]> {
+  const ctx = await loadContext();
+  if (!ctx.member) return [];
+  const { supabase, member } = ctx;
+  const query = supabase
+    .from("session_reader_requests")
+    .select("*")
+    .eq("family_id", member.familyId);
+  const requests = await rows(
+    (sessionId ? query.eq("session_id", sessionId) : query).order("created_at", {
+      ascending: false,
+    }),
+    mapReaderRequest,
+    "Could not load reader requests",
+  );
+  const pendingSessionIds = [
+    ...new Set(requests.filter((r) => r.status === "pending").map((r) => r.sessionId)),
+  ];
+  if (pendingSessionIds.length === 0) return requests;
+  // Past nights expire lazily in the database; show them as expired right away.
+  const [sessions, schedules] = await Promise.all([
+    rows(
+      supabase
+        .from("reading_sessions")
+        .select("*")
+        .eq("family_id", member.familyId)
+        .in("id", pendingSessionIds),
+      mapSession,
+      "Could not load requested nights",
+    ),
+    rows(
+      supabase
+        .from("schedules")
+        .select("*")
+        .eq("family_id", member.familyId)
+        .eq("active", true),
+      mapSchedule,
+      "Could not load schedule",
+    ),
+  ]);
+  const today = formatDateOnlyInTimeZone(
+    new Date(),
+    schedules[0]?.timezone ?? DEFAULT_FAMILY_TIMEZONE,
+  );
+  return withEffectiveStatus(requests, sessions, today);
+}
+
+export async function requestToReadNight(
+  sessionId: string,
+  rawNote?: string | null,
+): Promise<void> {
+  const { supabase } = requireMember(await loadContext());
+  const note = normalizeRequestNote(rawNote);
+  const { error } = await supabase.rpc("request_session_reader", {
+    target_session_id: sessionId,
+    request_note: note,
+  });
+  assertNoError(error, "Could not send your request");
+}
+
+export async function withdrawReaderRequest(requestId: string): Promise<void> {
+  const { supabase } = requireMember(await loadContext());
+  const { error } = await supabase.rpc("withdraw_session_reader_request", {
+    request_id: requestId,
+  });
+  assertNoError(error, "Could not withdraw your request");
+}
+
+/**
+ * Owner approves or declines a request. The RPC reassigns the reader, records
+ * the correction and closes other requests atomically; calendar invites follow.
+ */
+export async function decideReaderRequest(
+  requestId: string,
+  approve: boolean,
+): Promise<void> {
+  const { supabase, member } = requireMember(await loadContext());
+  requireOwner(member);
+  const { data, error } = await supabase.rpc("decide_session_reader_request", {
+    request_id: requestId,
+    approve,
+  });
+  assertNoError(error, "Could not update the request");
+  if (!approve) return;
+  for (const row of (data ?? []) as {
+    session_id: string;
+    changed: boolean;
+    removed_member_ids: string[] | null;
+  }[]) {
+    if (!row.changed) continue;
+    const removed = row.removed_member_ids ?? [];
+    if (removed.length > 0) {
+      const { data: sessionRow, error: sessionError } = await supabase
+        .from("reading_sessions")
+        .select("*")
+        .eq("id", row.session_id)
+        .maybeSingle();
+      assertNoError(sessionError, "Could not load the night");
+      if (sessionRow) {
+        await sendInvite(supabase, row.session_id, "CANCEL", {
+          memberIds: removed,
+          scheduledFor: mapSession(sessionRow as Row).scheduledFor,
+        });
+      }
+    }
+    await sendInvite(supabase, row.session_id, "REQUEST");
+  }
 }

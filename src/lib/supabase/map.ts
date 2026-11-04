@@ -10,6 +10,8 @@ import type {
   SessionAssignment,
   SessionBook,
   SessionCorrection,
+  SessionReaderRequest,
+  SessionReaderRequestStatus,
   SessionStatus,
 } from "@/lib/types";
 
@@ -226,4 +228,27 @@ export function partitionAssignmentWrites(rows: SessionAssignment[]): {
     }
   }
   return { updates, inserts };
+}
+
+const REQUEST_STATUSES: SessionReaderRequestStatus[] = [
+  "pending",
+  "approved",
+  "declined",
+  "withdrawn",
+  "expired",
+];
+
+export function mapReaderRequest(row: Row): SessionReaderRequest {
+  const status = str(row, "status") as SessionReaderRequestStatus;
+  return {
+    id: str(row, "id"),
+    sessionId: str(row, "session_id"),
+    familyId: str(row, "family_id"),
+    memberId: str(row, "member_id"),
+    note: strOrNull(row, "note"),
+    status: REQUEST_STATUSES.includes(status) ? status : "expired",
+    createdAt: str(row, "created_at"),
+    decidedAt: strOrNull(row, "decided_at"),
+    decidedByMemberId: strOrNull(row, "decided_by_member_id"),
+  };
 }
