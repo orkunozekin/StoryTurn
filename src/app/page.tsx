@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SiteNav } from "@/components/site-nav";
+import { firstName } from "@/lib/first-name";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,7 @@ export default async function HomePage() {
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
         <section className="animate-rise max-w-2xl">
           <p className="font-display text-2xl text-primary md:text-3xl">
-            Good evening, {home.member.displayName.split(" ")[0]}
+            Good evening, {firstName(home.member.displayName)}
           </p>
           <p className="mt-1 text-muted-foreground">
             {home.family?.name} · reading with{" "}

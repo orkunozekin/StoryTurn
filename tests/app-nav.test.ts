@@ -102,3 +102,10 @@ it("closes an expanded mobile panel when desktop navigation appears", async () =
     document.getElementById(toggle.getAttribute("aria-controls")!)?.hasAttribute("inert"),
   ).toBe(true);
 });
+
+it("shows only the first name, keeping the full name as a tooltip", () => {
+  render(createElement(AppNav, { displayName: "Alex Morgan Smith" }));
+  expect(screen.queryByText("Alex Morgan Smith")).toBeNull();
+  expect(screen.getAllByText("Alex").length).toBeGreaterThan(0);
+  expect(document.querySelector('[title="Alex Morgan Smith"]')).not.toBeNull();
+});
