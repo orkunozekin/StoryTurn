@@ -4,16 +4,20 @@ import { BookOpen, LayoutList, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { LibraryCollection } from "@/components/library-collection";
-import { SHELF_LEAN_DEG, matchesQuery, setShelfOrigin, spineLook } from "@/lib/shelf";
+import {
+  SHELF_LEAN_DEG,
+  formatKey,
+  matchesQuery,
+  setShelfOrigin,
+  shelfFormats,
+  spineLook,
+} from "@/lib/shelf";
 import type { Book } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type View = "shelf" | "list";
 
 const ALL = "all";
-
-const formatsOf = (books: Book[]) =>
-  [...new Set(books.flatMap((book) => (book.format ? [book.format] : [])))].sort();
 
 const recordOrigin = (event: React.MouseEvent<HTMLAnchorElement>, bookId: string) => {
   const el = event.currentTarget;
@@ -63,12 +67,15 @@ export function BookShelf({ books }: { books: Book[] }) {
   const [query, setQuery] = useState("");
   const [format, setFormat] = useState(ALL);
   const [view, setView] = useState<View>("shelf");
-  const formats = useMemo(() => formatsOf(books), [books]);
+  const formats = useMemo(() => shelfFormats(books), [books]);
   // A removed book can take the last of a format with it; fall back to All.
-  const activeFormat = format === ALL || formats.includes(format) ? format : ALL;
+  const activeFormat =
+    format === ALL || formats.some((f) => f.key === format) ? format : ALL;
 
   const matches = (book: Book) =>
-    matchesQuery(book, query) && (activeFormat === ALL || book.format === activeFormat);
+    matchesQuery(book, query) &&
+    (activeFormat === ALL ||
+      (book.format != null && formatKey(book.format) === activeFormat));
   const matchCount = books.filter(matches).length;
 
   if (books.length === 0) {
@@ -122,15 +129,15 @@ export function BookShelf({ books }: { books: Book[] }) {
 
       {formats.length > 1 && (
         <div role="group" aria-label="Filter by format" className="chip-row">
-          {[ALL, ...formats].map((value) => (
+          {[{ key: ALL, label: "All" }, ...formats].map(({ key, label }) => (
             <button
-              key={value}
+              key={key}
               type="button"
-              aria-pressed={activeFormat === value}
-              onClick={() => setFormat(value)}
+              aria-pressed={activeFormat === key}
+              onClick={() => setFormat(key)}
               className="chip"
             >
-              {value === ALL ? "All" : value}
+              {label}
             </button>
           ))}
         </div>

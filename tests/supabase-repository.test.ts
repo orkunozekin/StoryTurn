@@ -8,6 +8,7 @@ import {
   getFamilySessionPage,
   getLibraryPage,
   getSessionDetail,
+  getBookHistory,
 } from "@/lib/supabase/repository";
 type Row = Record<string, unknown>;
 const fixture = vi.hoisted(() => ({
@@ -125,7 +126,8 @@ function client() {
         },
         range: (start: number, end: number) => {
           offset = start;
-          limit = end - start + 1;
+          // Like PostgREST with max_rows = 1000: a range never returns more than the cap.
+          limit = Math.min(end - start + 1, 1000);
           fixture.ranges.push({ table, start, end });
           return builder;
         },
@@ -466,7 +468,8 @@ it("returns each filter's rows in a sensible order with counts", async () => {
   const statuses = ["completed", "cancelled", "scheduled"] as const;
   fixture.tables.reading_sessions = Array.from({ length: 30 }, (_, i) => {
     const day = new Date(Date.UTC(2026, 8, 20 + i)).toISOString().slice(0, 10);
-    const status = day >= "2026-10-04" ? (i % 5 === 0 ? "cancelled" : "scheduled") : statuses[i % 3];
+    const status =
+      day >= "2026-10-04" ? (i % 5 === 0 ? "cancelled" : "scheduled") : statuses[i % 3];
     return {
       id: `n-${String(i).padStart(2, "0")}`,
       family_id: "family",
@@ -483,14 +486,19 @@ it("returns each filter's rows in a sensible order with counts", async () => {
 
   const upcoming = await getFamilySessionPage("1", "upcoming", "2026-10-04");
   expect(upcoming.items.map(day)).toEqual(
-    upcomingRows.map((r) => String(r.scheduled_for).slice(0, 10)).sort().slice(0, 10),
+    upcomingRows
+      .map((r) => String(r.scheduled_for).slice(0, 10))
+      .sort()
+      .slice(0, 10),
   );
   expect(upcoming.items.map(day)[0]).toBe("2026-10-04"); // today leads
   expect(upcoming.items.map(day)).not.toContain("2026-09-22"); // past unlogged night
 
   const completed = await getFamilySessionPage("1", "completed", "2026-10-04");
   expect(completed.items.every((s) => s.status === "completed")).toBe(true);
-  expect(completed.items.map(day)).toEqual([...completed.items.map(day)].sort().reverse());
+  expect(completed.items.map(day)).toEqual(
+    [...completed.items.map(day)].sort().reverse(),
+  );
 
   const canceled = await getFamilySessionPage("1", "canceled", "2026-10-04");
   expect(canceled.total).toBe(rowsFor("cancelled").length);
@@ -575,4 +583,31 @@ it("sends calendar requests for every night the cascade RPC changed", async () =
   expect(
     vi.mocked(sendSessionInviteEmail).mock.calls.map(([invite]) => invite.icsUid),
   ).toEqual(["a", "b", "extra"]);
+});
+
+it("reads a book's whole history past the API row limit", async () => {
+  fixture.tables.reading_sessions = Array.from({ length: 1005 }, (_, i) => ({
+    id: `night-${String(i).padStart(4, "0")}`,
+    family_id: "family",
+    scheduled_for: new Date(Date.UTC(2024, 0, 1) + i * 86400000).toISOString(),
+    status: "completed",
+  }));
+  fixture.tables.session_books = fixture.tables.reading_sessions.map((session, i) => ({
+    id: `link-${String(i).padStart(4, "0")}`,
+    session_id: session.id,
+    book_id: "gruffalo",
+    title_freeform: null,
+  }));
+  fixture.tables.session_assignments = fixture.tables.reading_sessions.map(
+    (session, i) => ({
+      id: `assign-${String(i).padStart(4, "0")}`,
+      session_id: session.id,
+      member_id: "reader",
+      is_current: true,
+    }),
+  );
+  const history = await getBookHistory("gruffalo", "2030-01-01");
+  expect(history.timesRead).toBe(1005);
+  expect(history.lastRead?.sessionId).toBe("night-1004");
+  expect(history.topReader?.count).toBe(1005);
 });

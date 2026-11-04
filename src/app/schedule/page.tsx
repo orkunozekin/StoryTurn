@@ -48,11 +48,12 @@ import { sessionPageNumbers } from "@/lib/domain/session-presentation";
 import Link from "next/link";
 import { SessionStatusBadge } from "@/components/session-status";
 import { buttonVariants } from "@/components/ui/button";
+import { InfoTip } from "@/components/ui/info-tip";
 import "./schedule.css";
 
 const FILTER_LABELS: Record<SessionListFilter, string> = {
   all: "All",
-  upcoming: "Scheduled",
+  upcoming: "Coming up",
   completed: "Completed",
   canceled: "Canceled",
 };
@@ -185,26 +186,30 @@ export default async function SchedulePage({
                   min={1}
                   step={1}
                   required
-                  defaultValue={admin.schedule?.booksPerSession ?? 1}
+                  defaultValue={admin.schedule?.booksPerSession ?? 3}
                 />
               </div>
-              <div className="sm:col-span-2">
+              <div className="flex items-center gap-1 sm:col-span-2">
                 <ChoiceChip
                   variant="row"
                   name="assignRandomBooks"
-                  defaultChecked={admin.schedule?.assignRandomBooks ?? false}
+                  defaultChecked={admin.schedule?.assignRandomBooks ?? true}
+                  labelClassName="flex-1"
                 >
                   Assign random books from the family library each night
                 </ChoiceChip>
+                <InfoTip label="How book assignments work">
+                  <p>
+                    Random assignments apply to new nights. If your library has fewer
+                    books, we use the available books. Existing selections stay as they
+                    are.
+                  </p>
+                  <p>
+                    Choose books before reading, log them afterward, or do both. You can
+                    update each night’s book list at any time.
+                  </p>
+                </InfoTip>
               </div>
-              <p className="text-sm text-muted-foreground sm:col-span-2">
-                Random assignments apply to new nights. If your library has fewer books,
-                we use the available books. Existing selections stay as they are.
-              </p>
-              <p className="text-sm text-muted-foreground sm:col-span-2">
-                Choose books before reading, log them afterward, or do both. You can
-                update each night’s book list at any time.
-              </p>
             </div>
             <Button type="submit">Save schedule</Button>
           </NativeTimezoneForm>
@@ -396,9 +401,7 @@ export default async function SchedulePage({
             ))}
           </ul>
           {pagination.total === 0 ? (
-            <p className="mt-4 text-muted-foreground">
-              {EMPTY_MESSAGES[filter]}
-            </p>
+            <p className="mt-4 text-muted-foreground">{EMPTY_MESSAGES[filter]}</p>
           ) : (
             <nav
               aria-label="Session pages"

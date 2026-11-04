@@ -273,6 +273,18 @@
   .open-book-content:nth-child(3) {
   animation-delay: calc(var(--content-delay, 0ms) + 80ms);
 }
+.open-book:is([data-phase="flipping"], [data-phase="open"])
+  .open-book-page--right
+  .open-book-content:nth-child(4) {
+  animation-delay: calc(var(--content-delay, 0ms) + 120ms);
+}
+.open-book-summary {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
 @keyframes open-book-rise {
   from {
     opacity: 0;

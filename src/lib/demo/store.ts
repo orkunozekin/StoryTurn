@@ -1,3 +1,4 @@
+import { computeBookHistory } from "@/lib/domain/book-history";
 import { paginateLibrary } from "@/lib/domain/library-page";
 import {
   filterSessionsForList,
@@ -1002,6 +1003,21 @@ export function getBook(id: string) {
     state().books.find((book) => book.id === id && book.familyId === member.familyId) ??
     null
   );
+}
+
+export function getBookHistory(bookId: string, today: string) {
+  const member = getCurrentMember();
+  if (!member) return null;
+  const familyId = member.familyId;
+  return computeBookHistory({
+    bookId,
+    sessions: state().sessions.filter((s) => s.familyId === familyId),
+    assignments: state().assignments,
+    sessionBooks: state().sessionBooks,
+    books: state().books.filter((b) => b.familyId === familyId),
+    members: state().members.filter((m) => m.familyId === familyId),
+    today,
+  });
 }
 
 export function getFamilyAdmin() {

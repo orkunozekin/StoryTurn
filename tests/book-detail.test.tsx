@@ -31,7 +31,7 @@ it("shows the cover, edition details, and description", () => {
   expect(screen.getByRole("heading", { level: 1, name: "Goodnight Moon" })).toBeTruthy();
   expect(screen.getByText("Margaret Wise Brown")).toBeTruthy();
   expect(screen.getByText("Harper")).toBeTruthy();
-  expect(screen.getByText("9780060775858")).toBeTruthy();
+  expect(screen.queryByText("9780060775858")).toBeNull();
   expect(screen.getByText("A little bunny says goodnight.")).toBeTruthy();
   expect(container.querySelector("img")?.getAttribute("src")).toContain("8739161-M.jpg");
 });

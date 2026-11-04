@@ -30,10 +30,10 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 it("renders no more than ten sessions and links to later pages", async () => {
   const first = renderToStaticMarkup(
-    await SchedulePage({ searchParams: Promise.resolve({ page: "1" }) }),
+    await SchedulePage({ searchParams: Promise.resolve({ status: "all", page: "1" }) }),
   );
   const second = renderToStaticMarkup(
-    await SchedulePage({ searchParams: Promise.resolve({ page: "2" }) }),
+    await SchedulePage({ searchParams: Promise.resolve({ status: "all", page: "2" }) }),
   );
   expect((first.match(/href="\/sessions\//g) ?? []).length).toBe(10);
   expect((second.match(/href="\/sessions\//g) ?? []).length).toBe(10);
@@ -71,14 +71,14 @@ it("shows Tonight on home using local midnight and Tomorrow for the next calenda
 
 it("shows the final partial page and an empty list without invalid navigation", async () => {
   const last = renderToStaticMarkup(
-    await SchedulePage({ searchParams: Promise.resolve({ page: "99" }) }),
+    await SchedulePage({ searchParams: Promise.resolve({ status: "all", page: "99" }) }),
   );
   expect((last.match(/href="\/sessions\//g) ?? []).length).toBe(5);
   expect(last).toContain("Page 3 of 3");
   expect(last).not.toContain("/schedule?page=4");
   store.getDemoState().sessions = [];
   const empty = renderToStaticMarkup(
-    await SchedulePage({ searchParams: Promise.resolve({}) }),
+    await SchedulePage({ searchParams: Promise.resolve({ status: "all" }) }),
   );
   expect(empty).toContain("No reading nights yet.");
   expect(empty).not.toContain('aria-label="Session pages"');
@@ -103,7 +103,7 @@ it("can reach sessions after the thousandth row through the schedule page", asyn
     },
   ];
   const html = renderToStaticMarkup(
-    await SchedulePage({ searchParams: Promise.resolve({ page: "101" }) }),
+    await SchedulePage({ searchParams: Promise.resolve({ status: "all", page: "101" }) }),
   );
   expect(html).toContain("Page 101 of 101");
   expect(html).toContain("1005 nights");
@@ -133,14 +133,14 @@ it("renders numbered links, ellipses, and exactly one current page", async () =>
     scheduledFor: new Date(Date.UTC(2026, 0, 1) + i * 86400000).toISOString(),
   }));
   const html = renderToStaticMarkup(
-    await SchedulePage({ searchParams: Promise.resolve({ page: "50" }) }),
+    await SchedulePage({ searchParams: Promise.resolve({ status: "all", page: "50" }) }),
   );
   const nav = html.match(/<nav aria-label="Session pages"[\s\S]*?<\/nav>/)?.[0];
   expect(nav).toBeDefined();
   const links = [...nav!.matchAll(/<a\b([^>]*)>(\d+)<\/a>/g)];
   expect(links.map((match) => Number(match[2]))).toEqual([1, 49, 50, 51, 101]);
   for (const [, attributes, label] of links) {
-    expect(attributes).toContain(`href="/schedule?page=${label}"`);
+    expect(attributes).toContain(`href="/schedule?page=${label}&amp;status=all"`);
     expect(attributes).toContain(`aria-label="Page ${label}"`);
     expect(attributes.includes('aria-current="page"')).toBe(label === "50");
   }
@@ -170,7 +170,9 @@ it("filters before pagination and preserves status in page links", async () => {
   expect((html.match(/href="\/sessions\//g) ?? []).length).toBe(8);
   expect(html).toContain("/sessions/filtered-0");
   expect(html).not.toContain('/sessions/filtered-1"');
-  expect(html).toMatch(/aria-current="page" href="\/schedule\?status=completed">Completed/);
+  expect(html).toMatch(
+    /aria-current="page" href="\/schedule\?status=completed">Completed/,
+  );
 });
 
 it("shows filtered empty states and ignores invalid status values", async () => {
@@ -181,34 +183,40 @@ it("shows filtered empty states and ignores invalid status values", async () => 
   expect(empty).toContain("No canceled nights.");
   expect(empty).not.toContain('aria-label="Session pages"');
   store.resetDemoStore();
-  for (const status of ["unknown", ["scheduled", "completed"]]) {
+  // No, unknown or repeated status values fall back to the default: coming up.
+  for (const status of [undefined, "unknown", ["scheduled", "completed"]]) {
     const html = renderToStaticMarkup(
       await SchedulePage({ searchParams: Promise.resolve({ status }) }),
     );
-    expect(html).toContain("25 nights");
-    expect(html).toMatch(/aria-current="page" href="\/schedule">All/);
+    expect(html).toContain("15 nights");
+    expect(html).toMatch(/aria-current="page" href="\/schedule">Coming up/);
   }
 });
 
 it("renders filter pills with counts that link back to page 1", async () => {
   const html = renderToStaticMarkup(
-    await SchedulePage({ searchParams: Promise.resolve({ status: "scheduled", page: "2" }) }),
+    await SchedulePage({
+      searchParams: Promise.resolve({ status: "scheduled", page: "2" }),
+    }),
   );
   expect(html).toContain("Reading nights");
   expect(html).not.toContain("Upcoming &amp; recent");
   expect(html).not.toContain('id="session-status"');
   const pills = html.match(/<nav aria-label="Filter reading nights"[\s\S]*?<\/nav>/)?.[0];
   expect(pills).toBeDefined();
-  const links = [...pills!.matchAll(/<a ([^>]*)>([A-Za-z]+)<span[^>]*>(\d+)<\/span><\/a>/g)];
+  const links = [
+    ...pills!.matchAll(/<a ([^>]*)>([A-Za-z ]+)<span[^>]*>(\d+)<\/span><\/a>/g),
+  ];
   expect(links.map((m) => [m[2], Number(m[3])])).toEqual([
-    ["All", 25],
-    ["Scheduled", 15],
+    ["Coming up", 15],
     ["Completed", 10],
     ["Canceled", 0],
+    ["All", 25],
   ]);
   for (const [, attributes] of links) expect(attributes).not.toContain("page=");
   expect((pills!.match(/aria-current="page"/g) ?? []).length).toBe(1);
-  expect(pills).toMatch(/aria-current="page" href="\/schedule\?status=upcoming">Scheduled/);
+  expect(pills).toMatch(/aria-current="page" href="\/schedule">Coming up/);
+  expect(pills).toContain('href="/schedule?status=all"');
 });
 
 it("uses chips for readers and random books and labels the save button", async () => {
@@ -217,8 +225,13 @@ it("uses chips for readers and random books and labels the save button", async (
   );
   expect(html).toContain(">Save schedule</button>");
   expect(html).not.toContain("generate nights");
-  expect((html.match(/data-variant="chip"[^>]*><input type="checkbox"[^>]*name="readers"/g) ?? []).length).toBe(
-    store.getFamilyAdmin()!.readers.length,
+  expect(
+    (
+      html.match(/data-variant="chip"[^>]*><input type="checkbox"[^>]*name="readers"/g) ??
+      []
+    ).length,
+  ).toBe(store.getFamilyAdmin()!.readers.length);
+  expect(html).toMatch(
+    /data-variant="row"[^>]*><input type="checkbox"[^>]*name="assignRandomBooks"/,
   );
-  expect(html).toMatch(/data-variant="row"[^>]*><input type="checkbox"[^>]*name="assignRandomBooks"/);
 });

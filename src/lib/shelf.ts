@@ -81,3 +81,21 @@ export const takeShelfOrigin = (bookId: string) => {
   lastOrigin = null;
   return origin;
 };
+
+/** Book formats come from several sources, so "Paperback", "paperback " and "PAPERBACK" are one format. */
+export const formatKey = (format: string) =>
+  format.trim().replace(/\s+/g, " ").toLowerCase();
+
+/** Display label for a normalized format, e.g. "board book" becomes "Board Book". */
+export const formatLabel = (key: string) =>
+  key.replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
+
+/** Distinct formats on the shelf, case-insensitive, sorted by label. */
+export const shelfFormats = (books: Pick<Book, "format">[]) =>
+  [
+    ...new Set(
+      books.flatMap((book) => (book.format?.trim() ? [formatKey(book.format)] : [])),
+    ),
+  ]
+    .sort()
+    .map((key) => ({ key, label: formatLabel(key) }));

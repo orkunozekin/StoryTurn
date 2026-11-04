@@ -101,11 +101,11 @@ export function NativeTimezoneForm({
       <fieldset disabled={!timezone} className="space-y-4">
         {children}
       </fieldset>
-      <p className="mt-4 text-sm text-muted-foreground" aria-live="polite">
-        {timezone
-          ? "Bedtime uses your device’s local timezone automatically."
-          : "Detecting your device’s timezone…"}
-      </p>
+      {!timezone && (
+        <p className="mt-4 text-sm text-muted-foreground" aria-live="polite">
+          Detecting your device’s timezone…
+        </p>
+      )}
       <noscript>Enable JavaScript to save a schedule in your local timezone.</noscript>
       {burst && <SaveCelebration burst={burst} onDone={clearBurst} />}
     </form>

@@ -1,3 +1,4 @@
+import { computeBookHistory } from "@/lib/domain/book-history";
 import { librarySearchTerm, type LibraryPage } from "@/lib/domain/library-page";
 import {
   sessionDayStart,
@@ -143,6 +144,44 @@ async function rows<T>(
   const { data, error } = await query;
   assertNoError(error, fallback);
   return ((data ?? []) as Row[]).map(map);
+}
+
+/** Supabase caps each response (max_rows = 1000); read every page. */
+const PAGE_SIZE = 1000;
+async function allRows<T>(
+  page: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  map: (row: Row) => T,
+  fallback: string,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const batch = await rows(page(from, from + PAGE_SIZE - 1), map, fallback);
+    out.push(...batch);
+    if (batch.length < PAGE_SIZE) return out;
+  }
+}
+
+/** Keeps `in (...)` filters to a URL-safe length. */
+const ID_CHUNK = 150;
+async function rowsForIds<T>(
+  ids: string[],
+  page: (
+    chunk: string[],
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  map: (row: Row) => T,
+  fallback: string,
+): Promise<T[]> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += ID_CHUNK) chunks.push(ids.slice(i, i + ID_CHUNK));
+  const results = await Promise.all(
+    chunks.map((chunk) => allRows((from, to) => page(chunk, from, to), map, fallback)),
+  );
+  return results.flat();
 }
 
 export async function getCurrentUser(): Promise<UserAccount | null> {
@@ -395,6 +434,100 @@ export async function getBook(id: string): Promise<Book | null> {
     .maybeSingle();
   assertNoError(error, "Could not load book");
   return data ? mapBook(data as Row) : null;
+}
+
+export async function getBookHistory(bookId: string, today: string) {
+  const { supabase, member } = requireMember(await loadContext());
+  const links = await allRows(
+    (from, to) =>
+      supabase
+        .from("session_books")
+        .select("*")
+        .eq("book_id", bookId)
+        .order("id")
+        .range(from, to),
+    mapSessionBook,
+    "Could not load book history",
+  );
+  const sessionIds = [...new Set(links.map((link) => link.sessionId))];
+  const empty = {
+    bookId,
+    sessions: [],
+    assignments: [],
+    sessionBooks: [],
+    books: [],
+    members: [],
+    today,
+  };
+  if (sessionIds.length === 0) return computeBookHistory(empty);
+  const [sessions, assignments, sessionBooks, members] = await Promise.all([
+    rowsForIds(
+      sessionIds,
+      (ids, from, to) =>
+        supabase
+          .from("reading_sessions")
+          .select("*")
+          .eq("family_id", member.familyId)
+          .in("id", ids)
+          .order("id")
+          .range(from, to),
+      mapSession,
+      "Could not load sessions",
+    ),
+    rowsForIds(
+      sessionIds,
+      (ids, from, to) =>
+        supabase
+          .from("session_assignments")
+          .select("*")
+          .in("session_id", ids)
+          .order("id")
+          .range(from, to),
+      mapAssignment,
+      "Could not load assignments",
+    ),
+    rowsForIds(
+      sessionIds,
+      (ids, from, to) =>
+        supabase
+          .from("session_books")
+          .select("*")
+          .in("session_id", ids)
+          .order("id")
+          .range(from, to),
+      mapSessionBook,
+      "Could not load session books",
+    ),
+    familyReaders(supabase, member.familyId),
+  ]);
+  const otherBookIds = [
+    ...new Set(
+      sessionBooks.flatMap((sb) =>
+        sb.bookId && sb.bookId !== bookId ? [sb.bookId] : [],
+      ),
+    ),
+  ];
+  const books = await rowsForIds(
+    otherBookIds,
+    (ids, from, to) =>
+      supabase
+        .from("books")
+        .select("*")
+        .eq("family_id", member.familyId)
+        .in("id", ids)
+        .order("id")
+        .range(from, to),
+    mapBook,
+    "Could not load books",
+  );
+  return computeBookHistory({
+    ...empty,
+    sessions,
+    assignments,
+    sessionBooks,
+    books,
+    members,
+  });
 }
 
 export async function getLibrary(): Promise<Book[]> {

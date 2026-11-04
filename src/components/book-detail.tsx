@@ -1,11 +1,11 @@
 import type { Book } from "@/lib/types";
+import { formatKey, formatLabel } from "@/lib/shelf";
 
 function metaRows(book: Book) {
   return [
-    book.format ? { label: "Format", value: book.format } : null,
+    book.format ? { label: "Format", value: formatLabel(formatKey(book.format)) } : null,
     book.publisher ? { label: "Publisher", value: book.publisher } : null,
     book.editionYear ? { label: "Published", value: book.editionYear } : null,
-    book.isbn ? { label: "ISBN", value: book.isbn } : null,
   ].filter((row): row is { label: string; value: string } => row !== null);
 }
 

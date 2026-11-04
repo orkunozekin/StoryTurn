@@ -3,7 +3,13 @@
 import { BookOpen, ExternalLink, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { type ShelfOrigin, spineLook, takeShelfOrigin } from "@/lib/shelf";
+import {
+  type ShelfOrigin,
+  formatKey,
+  formatLabel,
+  spineLook,
+  takeShelfOrigin,
+} from "@/lib/shelf";
 import type { Book } from "@/lib/types";
 
 const OPEN_MS = 200;
@@ -74,12 +80,12 @@ const cardBox = (card: HTMLElement): Box => {
 
 const metaRows = (book: Book) =>
   [
-    book.format ? ["Format", book.format] : null,
+    book.format ? ["Format", formatLabel(formatKey(book.format))] : null,
     book.publisher ? ["Publisher", book.publisher] : null,
     book.editionYear ? ["Published", book.editionYear] : null,
   ].filter((row): row is [string, string] => row !== null);
 
-export function BookModal({ book }: { book: Book }) {
+export function BookModal({ book, summary }: { book: Book; summary?: string }) {
   const router = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
   const coverRef = useRef<HTMLDivElement>(null);
@@ -371,6 +377,17 @@ export function BookModal({ book }: { book: Book }) {
               <p className="open-book-content open-book-desc">
                 {book.description || "No description was saved for this book."}
               </p>
+              {summary && (
+                <p className="open-book-content open-book-summary">
+                  {summary} ·{" "}
+                  <a
+                    href={`/library/${book.id}`}
+                    className="underline underline-offset-2"
+                  >
+                    full history
+                  </a>
+                </p>
+              )}
               <div className="open-book-content flex flex-wrap gap-2">
                 <a
                   href={`/library/${book.id}`}
