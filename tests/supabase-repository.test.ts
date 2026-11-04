@@ -13,6 +13,7 @@ import {
   getSessionDetail,
   getBookHistory,
 } from "@/lib/supabase/repository";
+import { readerForPlanDate } from "@/lib/domain/weekday-plan";
 type Row = Record<string, unknown>;
 const fixture = vi.hoisted(() => ({
   tables: {} as Record<string, Row[]>,
@@ -20,6 +21,7 @@ const fixture = vi.hoisted(() => ({
   beforeQuery: undefined as undefined | ((table: string) => Promise<void>),
   ranges: [] as { table: string; start: number; end: number }[],
   updates: [] as { table: string; count: number }[],
+  rpcCalls: [] as { name: string; args: Row }[],
 }));
 function client() {
   return {
@@ -37,11 +39,33 @@ function client() {
       }),
     },
     rpc: async (name: string, args: Row) => {
+      fixture.rpcCalls.push({ name, args });
+      if (name === "manage_schedule" && !args.deleting) {
+        // Like the SQL: store the saved settings on the family's schedule.
+        Object.assign(fixture.tables.schedules[0], {
+          reader_rotation_member_ids: args.rotation_ids,
+          weekday_readers: args.weekday_plan,
+          start_date: args.starts_on,
+          time_local: args.bedtime,
+          timezone: args.zone,
+        });
+      }
       if (name !== "generate_schedule_night")
         return { data: fixture.changes, error: null };
       const schedule = fixture.tables.schedules.find(
         (row) => row.id === args.target_schedule_id,
       )!;
+      // Same rule as schedule_reader_for_date: a night nobody can take stays empty.
+      const reader = readerForPlanDate({
+        pool: schedule.reader_rotation_member_ids as string[],
+        plan: schedule.weekday_readers as string[] | undefined,
+        startDate: String(schedule.start_date),
+        date: String(args.night_date),
+        familyMemberIds: fixture.tables.family_members
+          .filter((m) => m.family_id === schedule.family_id)
+          .map((m) => String(m.id)),
+      }).memberId;
+      if (!reader) return { data: null, error: null };
       const id = `night-${args.night_date}`;
       fixture.tables.reading_sessions.push({
         id,
@@ -53,7 +77,7 @@ function client() {
       });
       fixture.tables.session_assignments.push({
         session_id: id,
-        member_id: "parent",
+        member_id: reader,
         is_current: true,
         is_original: true,
       });
@@ -204,6 +228,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-10-05T02:00:00Z"));
   vi.clearAllMocks();
   fixture.changes = [];
+  fixture.rpcCalls = [];
   fixture.beforeQuery = undefined;
   fixture.ranges = [];
   fixture.updates = [];
@@ -769,4 +794,92 @@ it("reads every active schedule before completing nights, so each family keeps i
   ];
   expect(await completeAllPastSessions()).toBe(0);
   expect(fixture.tables.reading_sessions[0]?.status).toBe("scheduled");
+});
+
+describe("saving a weekday plan", () => {
+  const R = "rotate";
+  const input = {
+    readerRotationMemberIds: ["parent", "reader"],
+    startDate: "2026-10-05",
+    timeLocal: "19:30",
+    timezone: "America/Los_Angeles",
+    bookTiming: "after" as const,
+  };
+  beforeEach(() => {
+    fixture.tables.families = [{ id: "family", name: "Family" }];
+    fixture.tables.family_members.push({
+      id: "nana",
+      family_id: "family",
+      email: "nana@example.com",
+      display_name: "Nana",
+      role: "reader",
+    });
+  });
+
+  it("sends the plan to manage_schedule and generates fixed and rotate nights", async () => {
+    const plan = [R, R, R, R, R, "nana", R];
+    await saveSchedule({ ...input, weekdayReaders: plan });
+    const call = fixture.rpcCalls.find((c) => c.name === "manage_schedule")!;
+    expect(call.args).toMatchObject({
+      rotation_ids: ["parent", "reader"],
+      weekday_plan: plan,
+      starts_on: "2026-10-05",
+    });
+    const readers = fixture.tables.reading_sessions.map((night) => [
+      String(night.scheduled_for).slice(0, 10),
+      fixture.tables.session_assignments.find((a) => a.session_id === night.id)
+        ?.member_id,
+    ]);
+    // Oct 4 in Los Angeles: tonight through 14 days ahead, from the Monday start.
+    expect(readers.slice(0, 7)).toEqual([
+      ["2026-10-05", "parent"],
+      ["2026-10-06", "reader"],
+      ["2026-10-07", "parent"],
+      ["2026-10-08", "reader"],
+      ["2026-10-09", "parent"],
+      ["2026-10-10", "nana"],
+      ["2026-10-11", "reader"],
+    ]);
+    expect(readers.at(-1)).toEqual(["2026-10-18", "reader"]);
+  });
+
+  it("defaults to an all-rotate plan when none is given", async () => {
+    await saveSchedule(input);
+    expect(
+      fixture.rpcCalls.find((c) => c.name === "manage_schedule")!.args.weekday_plan,
+    ).toEqual([R, R, R, R, R, R, R]);
+  });
+
+  it("rejects bad plans before calling the database", async () => {
+    fixture.tables.family_members.push({
+      id: "stranger",
+      family_id: "other",
+      email: "x@example.com",
+      display_name: "X",
+      role: "owner",
+    });
+    await expect(
+      saveSchedule({ ...input, weekdayReaders: [R, R, R, R, R, "stranger", R] }),
+    ).rejects.toThrow(/Saturday/);
+    await expect(
+      saveSchedule({ ...input, weekdayReaders: [R, R, R, R, R, R] }),
+    ).rejects.toThrow("Choose a reader for each of the seven nights");
+    await expect(
+      saveSchedule({
+        ...input,
+        readerRotationMemberIds: [],
+        weekdayReaders: [R, R, R, R, R, "nana", R],
+      }),
+    ).rejects.toThrow("Add someone to the rotation or pick a reader for every night");
+    expect(fixture.rpcCalls).toEqual([]);
+  });
+
+  it("skips rotate nights when everyone in the pool has left", async () => {
+    fixture.tables.schedules[0].weekday_readers = [R, R, R, R, R, "nana", R];
+    fixture.tables.schedules[0].reader_rotation_member_ids = ["gone"];
+    expect(await ensureAllUpcomingSessions(6)).toBe(1);
+    expect(fixture.tables.reading_sessions.map((r) => r.id)).toEqual([
+      "night-2026-10-10",
+    ]);
+  });
 });

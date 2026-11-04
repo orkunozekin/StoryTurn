@@ -38,6 +38,7 @@ import type { AddBookResolution, AddBookResult } from "@/lib/domain/book-duplica
 import { clearDemoSessionCookie, setDemoSessionCookie } from "@/lib/demo-session";
 import { searchBooks } from "@/lib/book-search";
 import { parseChildRelation } from "@/lib/domain/relations";
+import { parseWeekdayPlanForm } from "@/lib/domain/weekday-plan";
 import { clearPendingInvite, setPendingInvite } from "@/lib/pending-invite";
 import { createClient } from "@/lib/supabase/server";
 
@@ -235,8 +236,11 @@ export async function createInviteAction(formData?: FormData) {
 
 export async function saveScheduleAction(formData: FormData) {
   const readers = formData.getAll("readers").map(String);
+  // weekday0..weekday6; saveSchedule checks each is "rotate" or one of this family.
+  const weekdayReaders = parseWeekdayPlanForm(formData);
   await saveSchedule({
     readerRotationMemberIds: readers,
+    weekdayReaders,
     startDate: String(formData.get("startDate")),
     timeLocal: String(formData.get("timeLocal")),
     timezone: String(formData.get("timezone") ?? ""),
@@ -430,7 +434,8 @@ export async function reactivateSessionAction(sessionId: string) {
 
 function requiredId(formData: FormData, key: string): string {
   const value = String(formData.get(key) ?? "").trim();
-  if (!value || value.length > 100) throw new Error("Something is missing. Refresh and try again.");
+  if (!value || value.length > 100)
+    throw new Error("Something is missing. Refresh and try again.");
   return value;
 }
 

@@ -71,7 +71,13 @@ export interface Schedule {
   id: string;
   familyId: string;
   mode: ScheduleMode;
+  /** The rotation pool: who shares the "rotate" weekdays, in turn order. */
   readerRotationMemberIds: string[];
+  /**
+   * Who reads each weekday, Monday first (7 entries): "rotate" or a member id.
+   * Missing means every night rotates (schedules saved before weekday plans).
+   */
+  weekdayReaders?: string[];
   startDate: string; // YYYY-MM-DD
   timeLocal: string; // HH:mm
   timezone: string;
@@ -134,11 +140,7 @@ export interface ReadingSession {
 }
 
 export type SessionReaderRequestStatus =
-  | "pending"
-  | "approved"
-  | "declined"
-  | "withdrawn"
-  | "expired";
+  "pending" | "approved" | "declined" | "withdrawn" | "expired";
 
 /** A family member asking to read a specific upcoming night. */
 export interface SessionReaderRequest {

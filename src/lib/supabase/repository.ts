@@ -28,6 +28,7 @@ import {
 import { DEFAULT_FAMILY_TIMEZONE, formatDateOnlyInTimeZone } from "@/lib/domain/dates";
 import type { ChildRelation } from "@/lib/domain/relations";
 import { addDays } from "@/lib/domain/rotation";
+import { ALL_ROTATE, assertWeekdayPlan } from "@/lib/domain/weekday-plan";
 import {
   assertTransition,
   generateSessionsFromSchedule,
@@ -722,6 +723,9 @@ async function insertGeneratedSessions(
         sessionDateKey(toWallClock(String(row.scheduled_for ?? ""))),
       ),
     );
+    // Only the dates matter here: generate_schedule_night picks the reader in SQL with
+    // the same weekday-plan rule (and drops members who left), returning null for a
+    // night it leaves empty. Without a member list these drafts are a superset.
     const drafts = generateSessionsFromSchedule({
       schedule,
       existingSessionDates: existing,
@@ -920,6 +924,8 @@ export async function createInviteCode(
 
 export async function saveSchedule(input: {
   readerRotationMemberIds: string[];
+  /** Monday-first weekday plan; omitted means every night rotates. */
+  weekdayReaders?: string[];
   startDate: string;
   timeLocal: string;
   timezone: string;
@@ -930,12 +936,17 @@ export async function saveSchedule(input: {
   const { supabase, member } = requireMember(await loadContext());
   requireOwner(member);
   assertScheduleSettings(input);
-  if (input.readerRotationMemberIds.length === 0) {
-    throw new Error("Pick at least one reader");
-  }
+  const readers = await familyReaders(supabase, member.familyId);
+  const weekdayPlan = assertWeekdayPlan({
+    plan: input.weekdayReaders ?? [...ALL_ROTATE],
+    pool: input.readerRotationMemberIds,
+    familyMemberIds: readers.map((reader) => reader.id),
+  });
 
+  // manage_schedule re-checks the plan and reassigns future nights with the same rule.
   const { data, error } = await supabase.rpc("manage_schedule", {
     rotation_ids: input.readerRotationMemberIds,
+    weekday_plan: weekdayPlan,
     starts_on: input.startDate,
     bedtime: input.timeLocal,
     zone: input.timezone,

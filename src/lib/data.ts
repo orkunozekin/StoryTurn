@@ -78,6 +78,8 @@ export async function createInviteCode(role: "owner" | "reader" = "reader") {
 
 export async function saveSchedule(input: {
   readerRotationMemberIds: string[];
+  /** Monday-first: "rotate" or a family member id for each of the 7 weekdays. */
+  weekdayReaders?: string[];
   startDate: string;
   timeLocal: string;
   timezone: string;

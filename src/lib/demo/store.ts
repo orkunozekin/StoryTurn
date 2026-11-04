@@ -42,7 +42,12 @@ import { computeDashboardStats } from "@/lib/domain/stats";
 import { birthdayFromAge, parseBirthday } from "@/lib/domain/kids";
 import { DEFAULT_FAMILY_TIMEZONE, formatDateOnlyInTimeZone } from "@/lib/domain/dates";
 import { parseChildRelation, type ChildRelation } from "@/lib/domain/relations";
-import { addDays, formatDateOnly, readerForDate } from "@/lib/domain/rotation";
+import { addDays, formatDateOnly } from "@/lib/domain/rotation";
+import {
+  ALL_ROTATE,
+  assertWeekdayPlan,
+  readerForPlanDate,
+} from "@/lib/domain/weekday-plan";
 import {
   pickRandomBookIds,
   SESSION_BOOK_PICK_COUNT,
@@ -602,6 +607,7 @@ export function ensureUpcomingSessions(daysAhead = 14): number {
       existingSessionDates: existing,
       throughDate: through,
       nowDate: today,
+      familyMemberIds: familyMemberIds(schedule.familyId),
     });
     for (const draft of drafts) {
       const sessionId = id("ses");
@@ -645,8 +651,16 @@ export function ensureUpcomingSessions(daysAhead = 14): number {
   return created;
 }
 
+function familyMemberIds(familyId: string): string[] {
+  return state()
+    .members.filter((m) => m.familyId === familyId)
+    .map((m) => m.id);
+}
+
 export function saveSchedule(input: {
   readerRotationMemberIds: string[];
+  /** Monday-first weekday plan; omitted means every night rotates. */
+  weekdayReaders?: string[];
   startDate: string;
   timeLocal: string;
   timezone: string;
@@ -660,23 +674,25 @@ export function saveSchedule(input: {
     throw new Error("Only family owners can edit the schedule");
   }
   assertScheduleSettings(input);
-  if (input.readerRotationMemberIds.length === 0) {
-    throw new Error("Pick at least one reader");
-  }
-
-  if (
-    input.readerRotationMemberIds.some(
-      (readerId) =>
-        !state().members.some((r) => r.id === readerId && r.familyId === member.familyId),
-    )
-  ) {
-    throw new Error("Invalid reader in rotation");
-  }
+  const memberIds = familyMemberIds(member.familyId);
+  const weekdayReaders = assertWeekdayPlan({
+    plan: input.weekdayReaders ?? [...ALL_ROTATE],
+    pool: input.readerRotationMemberIds,
+    familyMemberIds: memberIds,
+  });
+  const readerOn = (day: string) =>
+    readerForPlanDate({
+      pool: input.readerRotationMemberIds,
+      plan: weekdayReaders,
+      startDate: input.startDate,
+      date: day,
+      familyMemberIds: memberIds,
+    }).memberId;
   const existing =
     state().schedules.find((s) => s.familyId === member.familyId && s.active) ??
     state().schedules.find((s) => s.familyId === member.familyId);
   if (existing) {
-    Object.assign(existing, input, { active: true });
+    Object.assign(existing, input, { weekdayReaders, active: true });
     for (const session of state().sessions.filter(
       (s) =>
         s.scheduleId === existing.id &&
@@ -690,7 +706,8 @@ export function saveSchedule(input: {
         .assignments.filter((a) => a.sessionId === session.id && a.isCurrent)
         .map((a) => a.memberId);
       const wasCancelled = session.status === "cancelled";
-      if (day < input.startDate) {
+      const reader = day < input.startDate ? null : readerOn(day);
+      if (!reader) {
         if (wasCancelled) continue;
         session.calendarSequence = (session.calendarSequence ?? 0) + 1;
         session.status = "cancelled";
@@ -704,9 +721,7 @@ export function saveSchedule(input: {
         state().assignments = applyReassignment({
           existing: state().assignments,
           sessionId: session.id,
-          newMemberIds: [
-            readerForDate(input.readerRotationMemberIds, input.startDate, day),
-          ],
+          newMemberIds: [reader],
         });
         const nextReaders = state()
           .assignments.filter((a) => a.sessionId === session.id && a.isCurrent)
@@ -731,6 +746,7 @@ export function saveSchedule(input: {
     familyId: member.familyId,
     mode: "together",
     readerRotationMemberIds: input.readerRotationMemberIds,
+    weekdayReaders,
     startDate: input.startDate,
     timeLocal: input.timeLocal,
     timezone: input.timezone,
@@ -1424,7 +1440,10 @@ export async function decideReaderRequest(
       const correction = buildCorrectionRecord({
         sessionId: session.id,
         correctedByMemberId: owner.id,
-        reason: approvalCorrectionReason(requester?.displayName ?? "Reader", request.note),
+        reason: approvalCorrectionReason(
+          requester?.displayName ?? "Reader",
+          request.note,
+        ),
         before,
         after,
       });
