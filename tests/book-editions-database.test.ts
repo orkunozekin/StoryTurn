@@ -21,8 +21,6 @@ beforeAll(async () => {
     `create schema auth; create table auth.users(id uuid primary key, email text); create role authenticated; create role service_role; create role anon; create function auth.uid() returns uuid language sql as $$select nullif(current_setting('test.uid',true),'')::uuid$$;`,
   );
   for (const file of readdirSync("supabase/migrations").sort()) {
-    if (file.startsWith("011"))
-      await db.exec(readFileSync("tests/fixtures/family-library-wishlist.sql", "utf8"));
     await db.exec(
       readFileSync(`supabase/migrations/${file}`, "utf8").replace(
         'create extension if not exists "pgcrypto";',

@@ -8,6 +8,12 @@ Project rules for StoryTurn / bedtime-readers agents. Prefer this file over chat
 - Do not commit secrets.
 - Optional `GOOGLE_BOOKS_API_KEY` enables Google-first ISBN/barcode and title search; without it, library search uses Open Library only.
 
+## Database migrations
+
+- Add schema changes as `supabase/migrations/NNN_snake_name.sql` with the next number. Never edit, rename, or delete a migration on `main`.
+- Merges to `main` apply migrations to production via `.github/workflows/db-migrations.yml`. Don't apply migrations by hand or through the Supabase MCP. If you ever must, record them under the file's own version, never a timestamp.
+- Keep migrations backward compatible with the deployed app (expand, then contract). See `docs/database-migrations.md`.
+
 ## Timezones for session calendar days
 
 Session `scheduledFor` values are **family-local wall times** (date + bedtime), not UTC instants.

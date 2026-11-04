@@ -1,0 +1,168 @@
+# Applies new files in supabase/migrations/ to the production Supabase project.
+# See docs/database-migrations.md for setup, re-running, and recovery.
+name: DB migrations
+
+on:
+  # Runs on every push to main so the "Migrations deployed" check exists on every main
+  # commit (Vercel Deployment Checks waits for it). The deploy job itself only runs when
+  # supabase/migrations/** changed, or when started by hand.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deploys at once. Queue instead of cancelling: a cancelled push could leave
+# a later commit's migrations unapplied.
+concurrency:
+  group: db-migrations-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  SUPABASE_CLI_VERSION: 2.122.1
+
+jobs:
+  changes:
+    name: Detect migration changes
+    runs-on: ubuntu-latest
+    outputs:
+      migrations: ${{ steps.diff.outputs.migrations }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "Manual run: deploying."
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$BEFORE" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "Previous commit unknown (new branch or force push): deploying to be safe."
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BEFORE" "$GITHUB_SHA" -- supabase/migrations; then
+            echo "No changes under supabase/migrations: nothing to deploy."
+            echo "migrations=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Changed migrations:"
+            git diff --name-status "$BEFORE" "$GITHUB_SHA" -- supabase/migrations
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Deploy migrations to production
+    needs: changes
+    if: needs.changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      configured: ${{ steps.secrets.outputs.configured }}
+    # Holds the production secrets. Add required reviewers here to approve each deploy.
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - name: Check secrets
+        id: secrets
+        run: |
+          missing=()
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || missing+=(SUPABASE_ACCESS_TOKEN)
+          [ -n "$SUPABASE_DB_PASSWORD" ] || missing+=(SUPABASE_DB_PASSWORD)
+          [ -n "$SUPABASE_PROJECT_REF" ] || missing+=(SUPABASE_PROJECT_REF)
+          if [ ${#missing[@]} -gt 0 ]; then
+            msg="Skipping production migration deploy: missing secrets ${missing[*]} in the 'production' environment. See docs/database-migrations.md."
+            echo "::warning::$msg"
+            echo "### Migrations NOT deployed" >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: steps.secrets.outputs.configured == 'true'
+
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
+        if: steps.secrets.outputs.configured == 'true'
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Validate migration file names
+        if: steps.secrets.outputs.configured == 'true'
+        run: node scripts/check-migrations.mjs HEAD
+
+      - name: Link project
+        if: steps.secrets.outputs.configured == 'true'
+        # Reads SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD from the environment.
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Migration list (before)
+        if: steps.secrets.outputs.configured == 'true'
+        run: supabase migration list --linked
+
+      - name: Pending migrations (dry run)
+        if: steps.secrets.outputs.configured == 'true'
+        run: supabase db push --linked --dry-run --skip-vault
+
+      - name: Apply migrations
+        if: steps.secrets.outputs.configured == 'true'
+        # No --include-all: a file numbered below the newest applied migration is an error,
+        # not something to apply silently out of order.
+        run: supabase db push --linked --skip-vault --yes
+
+      - name: Migration list (after)
+        if: steps.secrets.outputs.configured == 'true'
+        run: supabase migration list --linked
+
+      - name: Summary
+        if: always() && steps.secrets.outputs.configured == 'true'
+        env:
+          OUTCOME: ${{ job.status }}
+        run: |
+          {
+            echo "### Production migrations: $OUTCOME"
+            echo "Commit \`$GITHUB_SHA\`. See the 'Migration list' steps for the before/after history."
+            if [ "$OUTCOME" != "success" ]; then
+              echo ""
+              echo "Recovery steps: docs/database-migrations.md#recovering-from-a-failed-deploy"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Stable check name for Vercel Deployment Checks. Passes when migrations were deployed or
+  # there was nothing to deploy; fails if the deploy failed or was cancelled.
+  gate:
+    name: Migrations deployed
+    needs: [changes, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          CHANGES: ${{ needs.changes.result }}
+          DEPLOY: ${{ needs.deploy.result }}
+          CONFIGURED: ${{ needs.deploy.outputs.configured }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          echo "changes=$CHANGES deploy=$DEPLOY configured=$CONFIGURED fork=$IS_FORK"
+          if [ "$CHANGES" != "success" ]; then
+            echo "::error::Could not determine whether migrations changed."; exit 1
+          fi
+          case "$DEPLOY" in
+            skipped) echo "No migration changes." ;;
+            success)
+              if [ "$CONFIGURED" = "true" ]; then
+                echo "Migrations deployed."
+              elif [ "$IS_FORK" = "true" ]; then
+                echo "Fork without production secrets: nothing deployed, not blocking."
+              else
+                echo "::error::Migrations changed but were not deployed because the production secrets are missing. App code that needs them must not go live."
+                exit 1
+              fi
+              ;;
+            *) echo "::error::Migration deploy did not succeed ($DEPLOY). Production app deploy must wait."; exit 1 ;;
+          esac

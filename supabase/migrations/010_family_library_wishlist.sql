@@ -1,4 +1,5 @@
--- Deployed migration 010, captured for compatibility regression tests.
+-- 010_family_library_wishlist: restored from production migration history (version 010, already applied).
+-- This file was missing from the repo; `supabase db push` refuses to run while remote history has a version with no local file.
 -- Preserve reading history when consolidating existing work-level duplicates.
 begin;
 lock table public.books in share row exclusive mode;
