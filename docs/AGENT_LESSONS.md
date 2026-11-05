@@ -30,7 +30,7 @@ Durable lessons from PR review and production misses. `/start` loads `AGENT_CONT
 - **Source:** PR #4 · Greptile
 - **Gap:** A store-only test resubmitted planned books manually and could not catch the session form dropping checked library books or prefilled freeform titles.
 - **Going forward:** When saving replaces a collection, test the rendered form through its server action and assert retained entries after submission.
-- **Pointers:** `tests/session-book-form.test.ts`, `src/app/sessions/[id]/page.tsx`, `updateSessionAction`
+- **Pointers:** `tests/session-book-form.test.ts`, `src/app/(app)/sessions/[id]/page.tsx`, `updateSessionAction`
 
 ### 2026-10-04 — Keep timezone forms usable before hydration
 
@@ -72,7 +72,7 @@ Durable lessons from PR review and production misses. `/start` loads `AGENT_CONT
 - **Source:** PR #10 · Greptile
 - **Gap:** Helper tests did not verify numbered navigation, ellipses, or the current-page indicator in the rendered page.
 - **Going forward:** Test the rendered navigation and its accessible labels as well as page bounds and data retrieval.
-- **Pointers:** `tests/session-pages.test.ts`, `src/app/schedule/page.tsx`
+- **Pointers:** `tests/session-pages.test.ts`, `src/app/(app)/schedule/page.tsx`
 
 ### 2026-10-04 — Preserve select functionality before hydration
 

@@ -8,10 +8,7 @@ import {
   scanBookAction,
   removeBooksAction,
 } from "@/app/book-actions";
-import {
-  parseScannedBookCode,
-  scannedBookCodeMessage,
-} from "@/lib/isbn";
+import { parseScannedBookCode, scannedBookCodeMessage } from "@/lib/isbn";
 import { editionLabel, type BookInput } from "@/lib/book-edition";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -319,7 +316,7 @@ export function BookScanner() {
   return (
     <>
       <Button
-        disabled={starting}
+        loading={starting}
         onClick={async () => {
           setStarting(true);
           setMessage("");
@@ -370,7 +367,8 @@ export function BookScanner() {
           />
           <Button
             variant="secondary"
-            disabled={finishing || cameraStarting}
+            disabled={finishing}
+            loading={cameraStarting}
             onClick={() => (camera ? stopCamera() : void startCamera())}
           >
             {camera ? "Pause camera" : "Start camera"}
@@ -538,7 +536,7 @@ export function BookScanner() {
           >
             Keep scanning
           </Button>
-          <Button disabled={finishing || rowBusy} onClick={() => void finish()}>
+          <Button disabled={rowBusy} loading={finishing} onClick={() => void finish()}>
             {finishing ? "Finishing current save…" : "End session"}
           </Button>
         </DialogContent>

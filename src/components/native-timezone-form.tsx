@@ -48,6 +48,8 @@ export function NativeTimezoneForm({
   action,
   successMessage,
   celebrate = false,
+  onSaved,
+  className = "story-panel mt-6 rounded-2xl p-5 animate-rise-delay",
   children,
 }: {
   action: (data: FormData) => void | Promise<void>;
@@ -55,6 +57,9 @@ export function NativeTimezoneForm({
   successMessage?: string;
   /** Play a short burst from the submit button after a successful save. */
   celebrate?: boolean;
+  /** Runs after a successful save, e.g. to close the dialog holding the form. */
+  onSaved?: () => void;
+  className?: string;
   children?: ReactNode;
 }) {
   const timezone = useSyncExternalStore(subscribe, browserTimezone, serverTimezone);
@@ -84,6 +89,7 @@ export function NativeTimezoneForm({
           return;
         }
         if (successMessage) toast.success(successMessage);
+        onSaved?.();
         // Measure after the save: the refreshed page may have moved the button.
         const button = submitter.current;
         if (celebrate && button?.isConnected && !prefersReducedMotion()) {
@@ -95,7 +101,7 @@ export function NativeTimezoneForm({
           });
         }
       }}
-      className="story-panel mt-6 rounded-2xl p-5 animate-rise-delay"
+      className={className}
     >
       <input type="hidden" name="timezone" value={timezone} />
       <fieldset disabled={!timezone} className="space-y-4">

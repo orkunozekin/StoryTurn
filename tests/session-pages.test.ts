@@ -24,8 +24,8 @@ vi.mock("@/lib/data", () => ({
   listReaderRequests: store.listReaderRequests,
   getHomeContext: store.getHomeContext,
 }));
-import SchedulePage from "@/app/schedule/page";
-import HomePage from "@/app/page";
+import SchedulePage from "@/app/(app)/schedule/page";
+import HomePage from "@/app/(app)/page";
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-05T02:00:00Z"));
@@ -223,19 +223,14 @@ it("renders filter pills with counts that link back to page 1", async () => {
   expect(pills).toContain('href="/schedule?status=all"');
 });
 
-it("uses chips for readers and random books and labels the save button", async () => {
+it("summarizes the saved schedule and keeps editing behind a button", async () => {
   const html = renderToStaticMarkup(
     await SchedulePage({ searchParams: Promise.resolve({}) }),
   );
-  expect(html).toContain(">Save schedule</button>");
+  expect(html).toContain("Your rotation");
+  expect(html).toContain("Take turns every night");
+  expect(html).toContain("Edit schedule");
   expect(html).not.toContain("generate nights");
-  expect(
-    (
-      html.match(/data-variant="chip"[^>]*><input type="checkbox"[^>]*name="readers"/g) ??
-      []
-    ).length,
-  ).toBe(store.getFamilyAdmin()!.readers.length);
-  expect(html).toMatch(
-    /data-variant="row"[^>]*><input type="checkbox"[^>]*name="assignRandomBooks"/,
-  );
+  // The form itself only mounts inside the dialog.
+  expect(html).not.toContain(">Save schedule</button>");
 });

@@ -13,6 +13,10 @@ import {
   readerForPlanDate,
   rotateTurnsBefore,
   weekdayIndex,
+  describeWeekdayPlan,
+  matchPattern,
+  patternPlan,
+  poolStartingWith,
 } from "@/lib/domain/weekday-plan";
 import type { Schedule } from "@/lib/types";
 
@@ -387,5 +391,41 @@ describe("validating a weekday plan", () => {
     expect(parseWeekdayPlanForm(form)).toEqual([R, R, R, R, R, "nana", R]);
     form.delete("weekday6");
     expect(() => parseWeekdayPlanForm(form)).toThrow("Choose who reads on Sunday");
+  });
+});
+
+describe("schedule patterns", () => {
+  const R = "rotate";
+
+  it("builds plans from patterns and recognizes them again", () => {
+    expect(patternPlan("every-night")).toEqual([R, R, R, R, R, R, R]);
+    const weekend = patternPlan("weekend-reader", "nana");
+    expect(weekend).toEqual([R, R, R, R, R, "nana", "nana"]);
+    expect(matchPattern(weekend)).toEqual({
+      pattern: "weekend-reader",
+      weekendReaderId: "nana",
+    });
+    expect(matchPattern(patternPlan("every-night"))).toEqual({ pattern: "every-night" });
+    expect(matchPattern([R, "alex", R, R, R, R, R])).toBeNull();
+    expect(matchPattern([R, R, R, R, R, "nana", "alex"])).toBeNull();
+  });
+
+  it("turns the pool so the chosen reader goes first, keeping the order after them", () => {
+    expect(poolStartingWith(["a", "b", "c"], "b")).toEqual(["b", "c", "a"]);
+    expect(poolStartingWith(["a", "b", "c"], "a")).toEqual(["a", "b", "c"]);
+    expect(poolStartingWith(["a", "b"], "missing")).toEqual(["a", "b"]);
+  });
+
+  it("describes a plan in one line", () => {
+    const names = { nana: "Nana" };
+    expect(describeWeekdayPlan(patternPlan("every-night"), names)).toBe(
+      "Take turns every night",
+    );
+    expect(describeWeekdayPlan(patternPlan("weekend-reader", "nana"), names)).toBe(
+      "Take turns on weeknights · Nana reads on weekends",
+    );
+    expect(describeWeekdayPlan([R, "nana", R, R, R, R, R], names)).toBe(
+      "Rotate, with 1 fixed night a week",
+    );
   });
 });

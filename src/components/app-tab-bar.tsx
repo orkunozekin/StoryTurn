@@ -3,6 +3,7 @@
 import { CalendarDays, Library, Moon, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, type MouseEvent } from "react";
 
 export type TabLink = { href: string; label: string; icon: LucideIcon };
 
@@ -18,15 +19,32 @@ export const isActiveTab = (pathname: string, href: string) =>
     ? pathname === "/" || pathname.startsWith("/sessions")
     : pathname.startsWith(href);
 
+const isPlainClick = (event: MouseEvent) =>
+  event.button === 0 &&
+  !event.metaKey &&
+  !event.ctrlKey &&
+  !event.shiftKey &&
+  !event.altKey;
+
 /**
  * Phone: floating bar at the bottom. Tablet (md to lg): vertical rail on the left.
  * Hidden on desktop, where the top bar takes over.
+ *
+ * The tapped tab lights up right away instead of waiting for the route to commit.
+ * The optimistic choice is tied to the pathname it was made on and cleared as soon
+ * as the route changes.
  */
 export function AppTabBar() {
   const pathname = usePathname() ?? "";
+  const [tapped, setTapped] = useState<{ href: string; from: string } | null>(null);
+  // Forget the tap once the route moves, so returning to `from` later is not mis-lit.
+  if (tapped && tapped.from !== pathname) setTapped(null);
+  const optimisticHref = tapped?.from === pathname ? tapped.href : null;
+  const isActive = (href: string) =>
+    optimisticHref ? href === optimisticHref : isActiveTab(pathname, href);
   const activeIndex = Math.max(
     0,
-    tabLinks.findIndex((link) => isActiveTab(pathname, link.href)),
+    tabLinks.findIndex((link) => isActive(link.href)),
   );
 
   return (
@@ -38,11 +56,14 @@ export function AppTabBar() {
     >
       <span aria-hidden="true" className="tab-bar-pill" />
       {tabLinks.map(({ href, label, icon: Icon }) => {
-        const active = isActiveTab(pathname, href);
+        const active = isActive(href);
         return (
           <Link
             key={href}
             href={href}
+            onClick={(event) => {
+              if (isPlainClick(event)) setTapped({ href, from: pathname });
+            }}
             aria-current={active ? "page" : undefined}
             className="tab-bar-link relative flex flex-col items-center justify-center gap-0.5 rounded-full text-xs font-bold text-muted-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-[current=page]:text-primary"
           >

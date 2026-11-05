@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as store from "@/lib/demo/store";
-import { WeekdayPlanFields } from "@/components/weekday-plan-fields";
+import { ScheduleWizard, type ScheduleDefaults } from "@/components/schedule-wizard";
 
 vi.mock("@/app/actions", () => ({
   saveScheduleAction: vi.fn(),
@@ -31,17 +31,7 @@ vi.mock("@/lib/data", () => ({
   listFamilySessions: store.listFamilySessions,
   listReaderRequests: store.listReaderRequests,
 }));
-import SchedulePage from "@/app/schedule/page";
-
-const DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
+import SchedulePage from "@/app/(app)/schedule/page";
 
 beforeEach(() => store.resetDemoStore());
 afterEach(() => cleanup());
@@ -50,29 +40,15 @@ async function schedulePageHtml() {
   return renderToStaticMarkup(await SchedulePage({ searchParams: Promise.resolve({}) }));
 }
 
-describe("schedule page weekday plan", () => {
-  it("renders the pool chips, seven weekday selects and the two-week preview", async () => {
+describe("schedule page", () => {
+  it("summarizes the saved rotation for owners", async () => {
     const html = await schedulePageHtml();
-    expect(html).toContain("Who&#x27;s in the rotation");
-    expect(html).toContain("Every week");
-    expect(html).toContain("Next two weeks");
-    expect((html.match(/<input type="checkbox"[^>]*name="readers"/g) ?? []).length).toBe(
-      store.getFamilyAdmin()!.readers.length,
-    );
-    DAYS.forEach((day, index) => {
-      const select = html.match(
-        new RegExp(`<select[^>]*name="weekday${index}"[^>]*>[\\s\\S]*?</select>`),
-      )?.[0];
-      expect(select, day).toBeDefined();
-      expect(select).toContain(`aria-label="Who reads on ${day}"`);
-      // The seeded schedule rotates every night.
-      expect(select).toMatch(/<option value="rotate" selected="">Rotate<\/option>/);
-      expect(select).toContain('<option value="mem_nana">Nana</option>');
-    });
-    expect((html.match(/class="weekday-preview__night"/g) ?? []).length).toBe(14);
+    expect(html).toContain("Your rotation");
+    expect(html).toContain("Take turns every night");
+    expect(html).toContain("Edit schedule");
   });
 
-  it("selects a saved fixed reader and marks fixed nights in the preview", async () => {
+  it("describes a saved weekend reader", async () => {
     const schedule = store.getDemoState().schedules[0]!;
     store.saveSchedule({
       ...schedule,
@@ -83,111 +59,202 @@ describe("schedule page weekday plan", () => {
         "rotate",
         "rotate",
         "mem_nana",
-        "rotate",
+        "mem_nana",
       ],
     });
-    const html = await schedulePageHtml();
-    const saturday = html.match(
-      /<select[^>]*name="weekday5"[^>]*>[\s\S]*?<\/select>/,
-    )![0];
-    expect(saturday).toContain('<option value="mem_nana" selected="">Nana</option>');
-    expect((html.match(/data-fixed="true"/g) ?? []).length).toBe(2);
+    expect(await schedulePageHtml()).toContain(
+      "Take turns on weeknights · Nana reads on weekends",
+    );
   });
 
-  it("shows a removed member's weekday as Rotate", async () => {
-    const state = store.getDemoState();
-    state.schedules[0]!.weekdayReaders = [
-      "rotate",
-      "rotate",
-      "rotate",
-      "rotate",
-      "rotate",
-      "mem_gone",
-      "rotate",
-    ];
-    const html = await schedulePageHtml();
-    const saturday = html.match(
-      /<select[^>]*name="weekday5"[^>]*>[\s\S]*?<\/select>/,
-    )![0];
-    expect(saturday).toMatch(/<option value="rotate" selected="">/);
-  });
-
-  it("defaults a new schedule's rotation to the parents", async () => {
+  it("offers to create a schedule when there is none", async () => {
     store.getDemoState().schedules = [];
     const html = await schedulePageHtml();
-    const checked = [
-      ...html.matchAll(/<input type="checkbox"([^>]*)name="readers"([^>]*)>/g),
-    ]
-      .filter((m) => /checked/.test(m[0]))
-      .map((m) => /value="([^"]+)"/.exec(m[0])![1]);
-    expect(checked.sort()).toEqual(["mem_alex", "mem_jordan"]);
+    expect(html).toContain("No schedule yet");
+    expect(html).toContain("Create schedule");
   });
 });
 
-describe("live preview", () => {
+describe("schedule wizard", () => {
   const readers = [
     { id: "alex", displayName: "Alex", hint: "(Parent)" },
     { id: "jordan", displayName: "Jordan", hint: "(Parent)" },
     { id: "nana", displayName: "Nana", hint: "(Grandparent)" },
   ];
+  const ROTATE_ALL = Array.from({ length: 7 }, () => "rotate");
+  const baseDefaults: ScheduleDefaults = {
+    pool: ["alex", "jordan"],
+    plan: ROTATE_ALL,
+    startDate: "2026-11-02",
+    timeLocal: "19:30",
+    booksPerSession: 3,
+    assignRandomBooks: true,
+  };
 
-  function renderFields() {
+  function setup(defaults: Partial<ScheduleDefaults> = {}, editing = false) {
+    const action = vi.fn(async (data: FormData) => {
+      void data;
+    });
+    const user = userEvent.setup();
     render(
-      <form aria-label="Schedule">
-        <WeekdayPlanFields
-          readers={readers}
-          defaultPool={["alex", "jordan"]}
-          defaultPlan={Array.from({ length: 7 }, () => "rotate")}
-          defaultStartDate="2026-11-02"
-          today="2026-11-02"
-        />
-        <input name="startDate" type="date" defaultValue="2026-11-02" />
-      </form>,
+      <ScheduleWizard
+        action={action}
+        readers={readers}
+        defaults={{ ...baseDefaults, ...defaults }}
+        today="2026-11-02"
+        editing={editing}
+      />,
     );
+    return { action, user };
   }
+
+  const steps = () => screen.getByRole("navigation", { name: "Schedule steps" });
+  const goToStep = (user: ReturnType<typeof userEvent.setup>, name: RegExp) =>
+    user.click(within(steps()).getByRole("button", { name }));
   const previewReaders = () =>
-    within(screen.getByRole("list"))
+    within(screen.getByRole("list", { name: "Next two weeks" }))
       .getAllByRole("listitem")
       .map((item) => item.querySelector(".weekday-preview__reader")!.textContent);
+  const posted = (action: ReturnType<typeof setup>["action"]) =>
+    action.mock.calls.at(-1)![0] as FormData;
 
-  it("updates when a weekday changes and when the pool empties", async () => {
-    const user = userEvent.setup();
-    renderFields();
+  it("starts with readers and lets every step be opened from the rail", async () => {
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: "Create schedule" }));
+    expect(screen.getByRole("heading", { name: "Who reads?" })).toBeInTheDocument();
+    const rail = within(steps()).getAllByRole("button");
+    expect(rail.map((step) => step.getAttribute("aria-label"))).toEqual([
+      "Readers",
+      "Nights",
+      "Start date",
+      "First reader",
+      "Review",
+    ]);
+    expect(rail[0]).toHaveAttribute("aria-current", "step");
+
+    await goToStep(user, /^Review/);
+    expect(screen.getByRole("heading", { name: "Nights assigned" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "How book assignments work" }),
+    ).toBeInTheDocument();
+    await goToStep(user, /^Start date/);
+    expect(screen.getByLabelText("Start date", { selector: "input" })).toHaveValue(
+      "2026-11-02",
+    );
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(
+      screen.getByRole("heading", { name: "How are nights shared?" }),
+    ).toBeInTheDocument();
+  });
+
+  it("saves a pattern with a weekend reader and the chosen first reader", async () => {
+    const { action, user } = setup();
+    await user.click(screen.getByRole("button", { name: "Create schedule" }));
+    await user.click(screen.getByRole("checkbox", { name: /Nana/ }));
+    await user.click(screen.getByRole("button", { name: /Next/ }));
+
+    await user.click(
+      screen.getByRole("radio", {
+        name: /Take turns on weeknights, one reader on weekends/,
+      }),
+    );
+    await user.selectOptions(screen.getByLabelText("Weekend reader"), "nana");
+    await user.click(screen.getByRole("button", { name: /Next/ }));
+    await user.click(screen.getByRole("button", { name: /Next/ }));
+
+    await user.click(screen.getByRole("radio", { name: "Jordan" }));
+    expect(screen.getByText("Jordan → Nana → Alex")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Next/ }));
+
+    // 2026-11-02 is a Monday: weeknights rotate from Jordan, the weekend is Nana's.
+    expect(previewReaders().slice(0, 7)).toEqual([
+      "Jordan",
+      "Nana",
+      "Alex",
+      "Jordan",
+      "Nana",
+      "Nana",
+      "Nana",
+    ]);
+    await user.click(screen.getByRole("button", { name: "Save schedule" }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    const data = posted(action);
+    expect(data.getAll("readers")).toEqual(["jordan", "nana", "alex"]);
+    expect([0, 1, 2, 3, 4, 5, 6].map((day) => data.get(`weekday${day}`))).toEqual([
+      "rotate",
+      "rotate",
+      "rotate",
+      "rotate",
+      "rotate",
+      "nana",
+      "nana",
+    ]);
+    expect(data.get("startDate")).toBe("2026-11-02");
+    expect(data.get("timeLocal")).toBe("19:30");
+    expect(data.get("booksPerSession")).toBe("3");
+    expect(data.get("assignRandomBooks")).toBe("on");
+    // Saved in the device's timezone, without asking.
+    expect(data.get("timezone")).toBeTruthy();
+    // The dialog closes after saving.
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Nights assigned" })).toBeNull(),
+    );
+  });
+
+  it("assigns days by hand", async () => {
+    const { action, user } = setup();
+    await user.click(screen.getByRole("button", { name: "Create schedule" }));
+    await goToStep(user, /^Nights/);
+    await user.click(screen.getByRole("radio", { name: /Assign days/ }));
+    await user.selectOptions(screen.getByLabelText("Who reads on Saturday"), "nana");
+    await goToStep(user, /^Review/);
     expect(previewReaders().slice(0, 7)).toEqual([
       "Alex",
       "Jordan",
       "Alex",
       "Jordan",
       "Alex",
+      "Nana",
       "Jordan",
-      "Alex",
     ]);
+    await user.click(screen.getByRole("button", { name: "Save schedule" }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    expect(posted(action).get("weekday5")).toBe("nana");
+    expect(posted(action).get("weekday6")).toBe("rotate");
+  });
 
-    await user.selectOptions(screen.getByLabelText("Who reads on Saturday"), "nana");
-    await waitFor(() =>
-      expect(previewReaders().slice(0, 7)).toEqual([
-        "Alex",
-        "Jordan",
-        "Alex",
-        "Jordan",
-        "Alex",
-        "Nana",
-        "Jordan",
-      ]),
+  it("opens an edit on the saved hand-picked week", async () => {
+    const { user } = setup(
+      { plan: ["rotate", "alex", "rotate", "rotate", "rotate", "rotate", "rotate"] },
+      true,
     );
+    await user.click(screen.getByRole("button", { name: "Edit schedule" }));
     expect(
-      within(screen.getByRole("list"))
-        .getAllByRole("listitem")
-        .filter((item) => item.dataset.fixed === "true"),
-    ).toHaveLength(2);
+      within(steps()).getByRole("button", { name: "Review (done)" }),
+    ).toBeInTheDocument();
+    await goToStep(user, /^Nights/);
+    expect(screen.getByRole("radio", { name: /Assign days/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByLabelText("Who reads on Tuesday")).toHaveValue("alex");
+  });
 
+  it("sends the user back to the readers step instead of saving an empty rotation", async () => {
+    const { action, user } = setup();
+    await user.click(screen.getByRole("button", { name: "Create schedule" }));
     await user.click(screen.getByRole("checkbox", { name: /Alex/ }));
     await user.click(screen.getByRole("checkbox", { name: /Jordan/ }));
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Add someone to the rotation or pick a reader for every night",
-      ),
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Add someone to the rotation or pick a reader for every night",
     );
-    expect(screen.queryByRole("list")).toBeNull();
+    await goToStep(user, /^Review/);
+    await user.click(screen.getByRole("button", { name: "Save schedule" }));
+    expect(screen.getByRole("heading", { name: "Who reads?" })).toBeInTheDocument();
+    expect(within(steps()).getByRole("button", { name: "Readers" })).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
+    expect(action).not.toHaveBeenCalled();
   });
 });

@@ -30,18 +30,17 @@ vi.mock("@/lib/data", () => ({
   listFamilySessions: store.listFamilySessions,
   listReaderRequests: store.listReaderRequests,
 }));
-import SchedulePage from "@/app/schedule/page";
-import FamilyPage from "@/app/family/page";
+import SchedulePage from "@/app/(app)/schedule/page";
+import FamilyPage from "@/app/(app)/family/page";
 beforeEach(() => store.resetDemoStore());
 it("offers parent schedule editing and deletion", async () => {
   const html = renderToStaticMarkup(
     await SchedulePage({ searchParams: Promise.resolve({}) }),
   );
-  expect(html).toContain("Edit rotation");
+  expect(html).toContain("Edit schedule");
   expect(html).toContain("Delete schedule");
   expect(html).not.toContain("Choose your timezone");
   expect(html).not.toContain("Search city or region");
-  expect(html).toContain('name="timezone"');
 });
 it("offers parent invitations, reader editing, and child editing/removal", async () => {
   const html = renderToStaticMarkup(

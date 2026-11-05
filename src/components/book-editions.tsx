@@ -42,6 +42,7 @@ export function BookEditions({
           size="sm"
           variant="secondary"
           disabled={!!pending}
+          loading={pending === "load"}
           onClick={() => void load()}
         >
           {pending ? "Loading editions…" : "Choose edition"}
@@ -83,6 +84,7 @@ export function BookEditions({
                 variant="secondary"
                 className="shrink-0"
                 disabled={collected || !!pending}
+                loading={pending === edition.editionKey}
                 onClick={async () => {
                   setPending(edition.editionKey);
                   setError("");
@@ -112,6 +114,7 @@ export function BookEditions({
           size="sm"
           variant="outline"
           disabled={!!pending}
+          loading={pending === "load"}
           onClick={() => void load()}
         >
           More editions

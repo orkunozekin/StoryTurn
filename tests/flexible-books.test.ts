@@ -23,15 +23,15 @@ vi.mock("@/lib/data", () => ({
   listFamilySessions: store.listFamilySessions,
   listReaderRequests: store.listReaderRequests,
 }));
-import SchedulePage from "@/app/schedule/page";
+import SchedulePage from "@/app/(app)/schedule/page";
 beforeEach(() => store.resetDemoStore());
 it("explains mixed logging instead of forcing one timing choice", async () => {
   const html = renderToStaticMarkup(
     await SchedulePage({ searchParams: Promise.resolve({}) }),
   );
   expect(html).not.toContain('name="bookTiming"');
-  // The explanation now lives in an info tooltip next to the random-books option.
-  expect(html).toContain('aria-label="How book assignments work"');
+  // The explanation lives in an info tooltip in the schedule wizard's review step
+  // (covered in weekday-plan-page.test.tsx).
   expect(html).not.toContain("Bedtime uses your device");
 });
 it("keeps planned books while adding library and freeform books after reading", async () => {

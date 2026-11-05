@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import type {
   BookInput,
@@ -73,12 +74,14 @@ function DuplicateOption({
   book,
   recommended,
   disabled,
+  loading,
   onKeep,
 }: {
   heading: string;
   book: BookInput;
   recommended: boolean;
   disabled: boolean;
+  loading?: boolean;
   onKeep: () => void;
 }) {
   return (
@@ -110,6 +113,7 @@ function DuplicateOption({
         size="sm"
         variant={recommended ? "default" : "secondary"}
         disabled={disabled}
+        loading={loading}
         onClick={onKeep}
       >
         Keep this one
@@ -125,6 +129,8 @@ export function BookSearch({ collectionKeys }: { collectionKeys: string[] }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [adding, startAdding] = useTransition();
+  // Which button started the in-flight add, so only that one shows a spinner.
+  const [addingKey, setAddingKey] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<PendingDuplicate | null>(null);
   const toast = useToast();
 
@@ -177,7 +183,8 @@ export function BookSearch({ collectionKeys }: { collectionKeys: string[] }) {
     }
   }
 
-  function addBook(input: BookInput, resolution?: AddBookResolution) {
+  function addBook(input: BookInput, key: string, resolution?: AddBookResolution) {
+    setAddingKey(key);
     startAdding(async () => {
       try {
         handleAddResult(await addBookAction(toFormData(input, resolution)));
@@ -233,9 +240,23 @@ export function BookSearch({ collectionKeys }: { collectionKeys: string[] }) {
         Google Books when configured, then Open Library.
       </p>
       {pending && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Searching…
-        </p>
+        <div role="status" aria-busy="true">
+          <span className="sr-only">Searching…</span>
+          <ul className="grid items-start gap-2 lg:grid-cols-2">
+            {[0, 1, 2, 3].map((row) => (
+              <li
+                key={row}
+                className="flex items-start gap-3 rounded-xl border border-border bg-card/70 p-3"
+              >
+                <Skeleton className="h-16 w-12 shrink-0 rounded" />
+                <div className="flex-1 space-y-2 pt-1">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
       <ul className="grid items-start gap-2 lg:grid-cols-2">
@@ -264,8 +285,9 @@ export function BookSearch({ collectionKeys }: { collectionKeys: string[] }) {
                   size="sm"
                   variant="secondary"
                   disabled={adding}
+                  loading={adding && addingKey === book.sourceId}
                   className="col-start-1 row-start-2 sm:col-start-3 sm:row-start-1 sm:justify-self-end"
-                  onClick={() => addBook(toBookInput(book))}
+                  onClick={() => addBook(toBookInput(book), book.sourceId)}
                 >
                   Add to library
                 </Button>
@@ -307,8 +329,9 @@ export function BookSearch({ collectionKeys }: { collectionKeys: string[] }) {
                       book={duplicate.incoming}
                       recommended={pick("incoming")}
                       disabled={adding}
+                      loading={adding && addingKey === `replace:${existing.id}`}
                       onKeep={() =>
-                        addBook(duplicate.incoming, {
+                        addBook(duplicate.incoming, `replace:${existing.id}`, {
                           action: "replace",
                           existingBookId: existing.id,
                         })
@@ -323,7 +346,10 @@ export function BookSearch({ collectionKeys }: { collectionKeys: string[] }) {
                 type="button"
                 variant="outline"
                 disabled={adding}
-                onClick={() => addBook(duplicate.incoming, { action: "keep_both" })}
+                loading={adding && addingKey === "keep_both"}
+                onClick={() =>
+                  addBook(duplicate.incoming, "keep_both", { action: "keep_both" })
+                }
               >
                 Keep both
               </Button>
