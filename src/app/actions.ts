@@ -21,6 +21,7 @@ import {
   getCurrentMember,
   getSessionDetail,
   joinFamily,
+  saveThemePreference,
   requestToReadNight,
   reserveBookLookup,
   saveSchedule,
@@ -42,6 +43,7 @@ import { parseChildRelation } from "@/lib/domain/relations";
 import { parseWeekdayPlanForm } from "@/lib/domain/weekday-plan";
 import { clearPendingInvite, setPendingInvite } from "@/lib/pending-invite";
 import { createClient } from "@/lib/supabase/server";
+import { parseTheme } from "@/lib/theme";
 
 function authErrorRedirect(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -379,6 +381,24 @@ export async function switchDemoUserAction(formData: FormData) {
 export async function deleteScheduleAction() {
   await deleteSchedule();
   revalidatePath("/", "layout");
+}
+
+/**
+ * Saves the light/dark choice to the signed-in user's profile so it follows them
+ * to other devices. Returns a result instead of throwing so the toggle can
+ * revert and explain without an error boundary.
+ */
+export async function saveThemePreferenceAction(
+  value: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const theme = parseTheme(value);
+  if (!theme) return { ok: false, error: "Pick light or dark." };
+  try {
+    await saveThemePreference(theme);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Couldn't save your theme. Try again." };
+  }
 }
 
 export async function updateMemberAction(formData: FormData) {

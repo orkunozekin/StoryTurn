@@ -1,3 +1,4 @@
+import type { Theme } from "@/lib/theme";
 import type { ChildRelation } from "@/lib/domain/relations";
 
 export type MemberRole = "owner" | "reader";
@@ -177,6 +178,8 @@ export interface AppState {
   corrections: SessionCorrection[];
   readerRequests: SessionReaderRequest[];
   outboundEmails: OutboundEmail[];
+  /** Saved light/dark choice per user id. */
+  themePreferences: Record<string, Theme>;
 }
 
 export interface OutboundEmail {

@@ -9,6 +9,7 @@ import { isDemoMode } from "@/lib/config";
 import * as demo from "@/lib/demo/store";
 import * as live from "@/lib/supabase/repository";
 import type { DashboardFilter } from "@/lib/types";
+import type { Theme } from "@/lib/theme";
 
 export async function getCurrentUser() {
   return isDemoMode() ? demo.getCurrentUser() : live.getCurrentUser();
@@ -16,6 +17,14 @@ export async function getCurrentUser() {
 
 export async function getCurrentMember() {
   return isDemoMode() ? demo.getCurrentMember() : live.getCurrentMember();
+}
+
+export async function getThemePreference() {
+  return isDemoMode() ? demo.getThemePreference() : live.getThemePreference();
+}
+
+export async function saveThemePreference(theme: Theme) {
+  return isDemoMode() ? demo.saveThemePreference(theme) : live.saveThemePreference(theme);
 }
 
 export async function getHomeContext() {

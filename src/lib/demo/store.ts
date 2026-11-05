@@ -1,3 +1,4 @@
+import type { ProfileTheme, Theme } from "@/lib/theme";
 import { computeBookHistory } from "@/lib/domain/book-history";
 import { paginateLibrary } from "@/lib/domain/library-page";
 import {
@@ -202,6 +203,18 @@ export function demoLogin(email: string): UserAccount {
   state().users.push(user);
   setDemoSessionUserId(user.id);
   return user;
+}
+
+export function getThemePreference(): ProfileTheme {
+  const user = getCurrentUser();
+  if (!user) return "unavailable";
+  return state().themePreferences[user.id] ?? "unset";
+}
+
+export function saveThemePreference(theme: Theme): void {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Not signed in");
+  state().themePreferences[user.id] = theme;
 }
 
 export function demoLogout(): void {
