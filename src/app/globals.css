@@ -2,7 +2,17 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/* Dark when the reader picked it, or when they haven't picked and the OS is dark. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -53,26 +63,26 @@
 }
 
 :root {
-  /* Lamplight, "morning" theme. Dark ("bedtime") follows the OS setting below. */
+  /* Lamplight, "morning" theme. Dark ("bedtime") is below: picked in the theme toggle, or from the OS. */
   --background: #f6f1e7;
   --foreground: #1d2137;
   --card: #fffaf1;
   --card-foreground: #1d2137;
   --popover: #fffaf1;
   --popover-foreground: #1d2137;
-  --primary: #9a5c12;
+  --primary: #8a5210;
   --primary-foreground: #fffaf1;
   --secondary: #efe6d4;
   --secondary-foreground: #1d2137;
   --muted: #efe6d4;
-  --muted-foreground: #5d6075;
+  --muted-foreground: #52556b;
   --accent: #b8701a;
   --accent-foreground: #fffaf1;
-  --destructive: #b4482f;
-  --border: #d6c8ad;
+  --destructive: #a53f27;
+  --border: #cdbd9c;
   --input: #8f7f66;
   --ring: #b8701a;
-  --success: #2f7d5d;
+  --success: #256b4e;
   --status-scheduled: #7f4a0c;
   --status-completed: #22634a;
   --status-cancelled: #93371f;
@@ -90,61 +100,113 @@
   --radius: 0.875rem;
   --sidebar: #fffaf1;
   --sidebar-foreground: #1d2137;
-  --sidebar-primary: #9a5c12;
+  --sidebar-primary: #8a5210;
   --sidebar-primary-foreground: #fffaf1;
   --sidebar-accent: #efe6d4;
   --sidebar-accent-foreground: #1d2137;
-  --sidebar-border: #d6c8ad;
+  --sidebar-border: #cdbd9c;
   --sidebar-ring: #b8701a;
   --glow: rgba(184, 112, 26, 0.14);
+  /* Raised cards (story-panel): a touch brighter than the page. */
+  --panel: color-mix(in oklab, var(--card) 88%, white);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   color-scheme: light;
 }
 
+:root[data-theme="dark"] {
+  --background: #121829;
+  --foreground: #f3eee2;
+  --card: #1c2440;
+  --card-foreground: #f3eee2;
+  --popover: #1c2440;
+  --popover-foreground: #f3eee2;
+  --primary: #f5bd6a;
+  --primary-foreground: #2a1a05;
+  --secondary: #2b3560;
+  --secondary-foreground: #f3eee2;
+  --muted: #2b3560;
+  --muted-foreground: #c0bed0;
+  --accent: #f5bd6a;
+  --accent-foreground: #2a1a05;
+  --destructive: #f29a84;
+  --border: #56629a;
+  --input: #8a96c4;
+  --ring: #f5bd6a;
+  --success: #8fd0b2;
+  --status-scheduled: #f5bd6a;
+  --status-completed: #8fd0b2;
+  --status-cancelled: #f6a491;
+  --shelf-back: #1a2038;
+  --shelf-wood-top-back: #5a3c22;
+  --shelf-wood-top: #7a5432;
+  --shelf-wood-front: #573820;
+  --shelf-wood-edge: #3e2714;
+  --chart-1: #f5bd6a;
+  --chart-2: #7fc3a4;
+  --chart-3: #e7836b;
+  --chart-4: #c0bed0;
+  --chart-5: #ece6d8;
+  --sidebar: #1c2440;
+  --sidebar-foreground: #f3eee2;
+  --sidebar-primary: #f5bd6a;
+  --sidebar-primary-foreground: #2a1a05;
+  --sidebar-accent: #2b3560;
+  --sidebar-accent-foreground: #f3eee2;
+  --sidebar-border: #56629a;
+  --sidebar-ring: #f5bd6a;
+  --glow: rgba(245, 189, 106, 0.12);
+  /* Mixing in white greys the night palette out; lift cards only slightly. */
+  --panel: color-mix(in oklab, var(--card) 96%, white);
+  color-scheme: dark;
+}
+
+/* Same palette as above, for readers who haven't picked a theme and use a dark OS. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #141a2e;
-    --foreground: #ece6d8;
-    --card: #1d2540;
-    --card-foreground: #ece6d8;
-    --popover: #1d2540;
-    --popover-foreground: #ece6d8;
-    --primary: #f2b45a;
+  :root:not([data-theme="light"]) {
+    --background: #121829;
+    --foreground: #f3eee2;
+    --card: #1c2440;
+    --card-foreground: #f3eee2;
+    --popover: #1c2440;
+    --popover-foreground: #f3eee2;
+    --primary: #f5bd6a;
     --primary-foreground: #2a1a05;
-    --secondary: #283256;
-    --secondary-foreground: #ece6d8;
-    --muted: #283256;
-    --muted-foreground: #a9a8b8;
-    --accent: #f2b45a;
+    --secondary: #2b3560;
+    --secondary-foreground: #f3eee2;
+    --muted: #2b3560;
+    --muted-foreground: #c0bed0;
+    --accent: #f5bd6a;
     --accent-foreground: #2a1a05;
-    --destructive: #e7836b;
-    --border: #3d4873;
-    --input: #7480ab;
-    --ring: #f2b45a;
-    --success: #7fc3a4;
-    --status-scheduled: #f2b45a;
-    --status-completed: #7fc3a4;
-    --status-cancelled: #f0957f;
+    --destructive: #f29a84;
+    --border: #56629a;
+    --input: #8a96c4;
+    --ring: #f5bd6a;
+    --success: #8fd0b2;
+    --status-scheduled: #f5bd6a;
+    --status-completed: #8fd0b2;
+    --status-cancelled: #f6a491;
     --shelf-back: #1a2038;
     --shelf-wood-top-back: #5a3c22;
     --shelf-wood-top: #7a5432;
     --shelf-wood-front: #573820;
     --shelf-wood-edge: #3e2714;
-    --chart-1: #f2b45a;
+    --chart-1: #f5bd6a;
     --chart-2: #7fc3a4;
     --chart-3: #e7836b;
-    --chart-4: #a9a8b8;
+    --chart-4: #c0bed0;
     --chart-5: #ece6d8;
-    --sidebar: #1d2540;
-    --sidebar-foreground: #ece6d8;
-    --sidebar-primary: #f2b45a;
+    --sidebar: #1c2440;
+    --sidebar-foreground: #f3eee2;
+    --sidebar-primary: #f5bd6a;
     --sidebar-primary-foreground: #2a1a05;
-    --sidebar-accent: #283256;
-    --sidebar-accent-foreground: #ece6d8;
-    --sidebar-border: #3d4873;
-    --sidebar-ring: #f2b45a;
-    --glow: rgba(242, 180, 90, 0.12);
+    --sidebar-accent: #2b3560;
+    --sidebar-accent-foreground: #f3eee2;
+    --sidebar-border: #56629a;
+    --sidebar-ring: #f5bd6a;
+    --glow: rgba(245, 189, 106, 0.12);
+    /* Mixing in white greys the night palette out; lift cards only slightly. */
+    --panel: color-mix(in oklab, var(--card) 96%, white);
     color-scheme: dark;
   }
 }
@@ -190,7 +252,7 @@ input[type="reset"] {
     font-family: var(--font-display), ui-serif, Georgia, serif;
   }
   .story-panel {
-    background: color-mix(in oklab, var(--card) 88%, white);
+    background: var(--panel);
     border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
     box-shadow: 0 18px 40px -28px rgba(10, 13, 24, 0.45);
   }
@@ -377,7 +439,13 @@ body:has([data-app-tab-bar]) {
   margin-inline: -1rem;
   padding: 2px 1rem;
   scroll-padding-inline: 1rem;
-  mask-image: linear-gradient(90deg, transparent, #000 1rem, #000 calc(100% - 1.75rem), transparent);
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 1rem,
+    #000 calc(100% - 1.75rem),
+    transparent
+  );
 }
 .chip-row::-webkit-scrollbar {
   display: none;
@@ -510,9 +578,19 @@ body:has([data-app-tab-bar]) {
 }
 .shelf-spine[data-trim="cap"]::before {
   background:
-    linear-gradient(to right, rgba(0, 0, 0, 0.28) 0 18px, var(--trim-color) 18px 20px, transparent 20px)
+    linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0.28) 0 18px,
+        var(--trim-color) 18px 20px,
+        transparent 20px
+      )
       left / 22px 100% no-repeat,
-    linear-gradient(to left, rgba(0, 0, 0, 0.28) 0 10px, var(--trim-color) 10px 11px, transparent 11px)
+    linear-gradient(
+        to left,
+        rgba(0, 0, 0, 0.28) 0 10px,
+        var(--trim-color) 10px 11px,
+        transparent 11px
+      )
       right / 12px 100% no-repeat;
 }
 .shelf-spine[data-trim="cap"] {
@@ -656,9 +734,19 @@ body:has([data-app-tab-bar]) {
   }
   .shelf-spine[data-trim="cap"]::before {
     background:
-      linear-gradient(to bottom, rgba(0, 0, 0, 0.28) 0 26px, var(--trim-color) 26px 28px, transparent 28px)
+      linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.28) 0 26px,
+          var(--trim-color) 26px 28px,
+          transparent 28px
+        )
         top / 100% 30px no-repeat,
-      linear-gradient(to top, rgba(0, 0, 0, 0.28) 0 12px, var(--trim-color) 12px 13px, transparent 13px)
+      linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.28) 0 12px,
+          var(--trim-color) 12px 13px,
+          transparent 13px
+        )
         bottom / 100% 14px no-repeat;
   }
   .shelf-spine[data-trim="cap"] {

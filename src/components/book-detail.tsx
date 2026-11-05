@@ -46,7 +46,7 @@ export function BookDetail({ book }: { book: Book }) {
                   className="rounded-full bg-secondary px-3 py-1.5 text-sm"
                 >
                   <dt className="inline text-muted-foreground">{row.label}</dt>{" "}
-                  <dd className="inline font-medium">{row.value}</dd>
+                  <dd className="inline font-bold text-foreground">{row.value}</dd>
                 </div>
               ))}
             </dl>

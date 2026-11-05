@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme-toggle";
 import { BackLink } from "@/components/back-link";
 import { FormSelect } from "@/components/form-select";
 export const dynamic = "force-dynamic";
@@ -270,16 +271,19 @@ export default async function FamilyPage({
             Signed in as{" "}
             <span className="font-bold text-foreground">{member.displayName}</span>
           </p>
-          <ConfirmationForm
-            title="Sign out?"
-            description="You will need to sign in again to access your family."
-            confirmLabel="Sign out"
-            action={logoutAction}
-          >
-            <Button type="submit" variant="outline" size="sm">
-              Sign out
-            </Button>
-          </ConfirmationForm>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <ConfirmationForm
+              title="Sign out?"
+              description="You will need to sign in again to access your family."
+              confirmLabel="Sign out"
+              action={logoutAction}
+            >
+              <Button type="submit" variant="outline" size="sm">
+                Sign out
+              </Button>
+            </ConfirmationForm>
+          </div>
         </section>
       </main>
     </div>

@@ -4,8 +4,7 @@ import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentMember, getCurrentUser, getDashboard } from "@/lib/data";
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { DashboardFilters } from "@/components/dashboard-filters";
 
 function StatTitle({
   book,
@@ -63,51 +62,17 @@ export default async function DashboardPage({
           </p>
         </section>
 
-        <div className="mt-4 flex flex-wrap gap-2 animate-rise-delay">
-          <Link
-            href={`/dashboard?filter=${member.id}`}
-            className={cn(
-              buttonVariants({
-                size: "sm",
-                variant:
-                  filter.type === "member" && filter.memberId === member.id
-                    ? "default"
-                    : "outline",
-              }),
-            )}
-          >
-            Me
-          </Link>
-          {dash.readers
-            .filter((r) => r.id !== member.id)
-            .map((r) => (
-              <Link
-                key={r.id}
-                href={`/dashboard?filter=${r.id}`}
-                className={cn(
-                  buttonVariants({
-                    size: "sm",
-                    variant:
-                      filter.type === "member" && filter.memberId === r.id
-                        ? "default"
-                        : "outline",
-                  }),
-                )}
-              >
-                {r.displayName}
-              </Link>
-            ))}
-          <Link
-            href="/dashboard?filter=family"
-            className={cn(
-              buttonVariants({
-                size: "sm",
-                variant: filter.type === "family" ? "default" : "outline",
-              }),
-            )}
-          >
-            Whole family
-          </Link>
+        <div className="mt-5 animate-rise-delay">
+          <DashboardFilters
+            activeKey={filter.type === "family" ? "family" : filter.memberId}
+            options={[
+              { key: member.id, label: "Me" },
+              ...dash.readers
+                .filter((r) => r.id !== member.id)
+                .map((r) => ({ key: r.id, label: r.displayName })),
+              { key: "family", label: "Whole family" },
+            ]}
+          />
         </div>
 
         <section className="reveal-stagger mt-6 grid gap-4 sm:grid-cols-3">

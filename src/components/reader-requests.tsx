@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { InlineDetail } from "@/components/ui/detail";
 import { HandHeart } from "lucide-react";
 import {
   decideReaderRequestAction,
@@ -160,10 +161,7 @@ export function PendingRequestList({
       </div>
       <ul className="space-y-3">
         {requests.map((request) => (
-          <li
-            key={request.id}
-            className="rounded-xl border border-border bg-card/60 p-3"
-          >
+          <li key={request.id} className="rounded-xl border border-border bg-card/60 p-3">
             <ToastForm
               action={decideReaderRequestAction}
               successMessage={(result) =>
@@ -191,12 +189,10 @@ export function PendingRequestList({
                     "this night"
                   )}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Currently: {request.currentReader || "no reader"}
-                </p>
-                {request.note && (
-                  <p className="break-words text-sm">“{request.note}”</p>
-                )}
+                <InlineDetail label="Currently">
+                  {request.currentReader || "No reader"}
+                </InlineDetail>
+                {request.note && <p className="break-words text-sm">“{request.note}”</p>}
               </div>
               <input type="hidden" name="requestId" value={request.id} />
               <input type="hidden" name="sessionId" value={request.sessionId} />
