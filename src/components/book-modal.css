@@ -12,9 +12,16 @@
   perspective: 2200px;
   color: var(--ink);
 }
+/* Slightly dimmer paper at night, but still paper: dark ink on warm pages. */
+[data-theme="dark"] .open-book {
+  --paper: #efe6d2;
+  --paper-edge: #d6c8aa;
+  --ink: #2a2418;
+  --ink-soft: #6a5f4c;
+  --pill: rgba(60, 45, 20, 0.09);
+}
 @media (prefers-color-scheme: dark) {
-  .open-book {
-    /* Slightly dimmer paper at night, but still paper: dark ink on warm pages. */
+  :root:not([data-theme="light"]) .open-book {
     --paper: #efe6d2;
     --paper-edge: #d6c8aa;
     --ink: #2a2418;

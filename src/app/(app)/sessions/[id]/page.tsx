@@ -1,4 +1,5 @@
 import { RotateCcw } from "lucide-react";
+import { DetailItem, DetailList } from "@/components/ui/detail";
 import { ChoiceChip } from "@/components/ui/choice-chip";
 import { ConfirmationForm } from "@/components/confirmation-form";
 import { BackLink } from "@/components/back-link";
@@ -137,14 +138,17 @@ export default async function SessionPage({
             )}
           </div>
           <h1 className="font-display mt-3 text-3xl text-primary">{nightLabel}</h1>
-          <p className="mt-2 text-muted-foreground">
-            Current reader:{" "}
-            {currentReaderLabels({
-              assignments: detail.assignments,
-              memberNames: detail.memberNames,
-              sessionId: id,
-            }).join(", ")}
-          </p>
+          <DetailList className="mt-3">
+            <DetailItem label="Current reader">
+              <span className="text-lg">
+                {currentReaderLabels({
+                  assignments: detail.assignments,
+                  memberNames: detail.memberNames,
+                  sessionId: id,
+                }).join(", ")}
+              </span>
+            </DetailItem>
+          </DetailList>
           {corrected && (
             <Alert className="mt-4">
               <AlertTitle>Original assignment preserved</AlertTitle>

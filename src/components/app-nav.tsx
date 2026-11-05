@@ -17,6 +17,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { logoutAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { firstName } from "@/lib/first-name";
 
 const links: { href: string; label: string; icon: LucideIcon }[] = [
@@ -102,6 +103,7 @@ export function AppNav({
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <ThemeToggle className="hidden md:inline-flex" />
           <ConfirmationForm
             title="Sign out?"
             description="You will need to sign in again to access your family."
@@ -167,6 +169,10 @@ export function AppNav({
                 <NavLinkLabel icon={link.icon} label={link.label} />
               </Link>
             ))}
+            <div className="mt-2 flex items-center justify-between gap-3 border-t border-border px-3 pt-3">
+              <span className="text-sm font-semibold text-foreground">Theme</span>
+              <ThemeToggle />
+            </div>
             <ConfirmationForm
               title="Sign out?"
               description="You will need to sign in again to access your family."

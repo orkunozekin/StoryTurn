@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { firstName } from "@/lib/first-name";
 import { Badge } from "@/components/ui/badge";
+import { DetailItem, DetailList } from "@/components/ui/detail";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getHomeContext } from "@/lib/data";
@@ -57,36 +58,47 @@ export default async function HomePage() {
                 {upcomingSessionDay(next.scheduledFor, home.timezone)} at{" "}
                 {next.scheduledFor.slice(11, 16)}
               </h1>
-              <p className="mt-3 text-lg text-foreground/90">
-                Reader:{" "}
-                {currentReaderLabels({
-                  assignments,
-                  memberNames,
-                  sessionId: next.id,
-                }).join(", ")}
-              </p>
-              {corrected && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Originally assigned:{" "}
-                  {originalReaderLabels({
-                    assignments,
-                    memberNames,
-                    sessionId: next.id,
-                  }).join(", ")}
-                </p>
-              )}
-              <p className="mt-4 text-muted-foreground">
-                {books.length > 0
-                  ? `Books lined up: ${books
-                      .map(
-                        (b) =>
-                          b.titleFreeform ??
-                          home.books.find((x) => x.id === b.bookId)?.title ??
-                          "Untitled",
-                      )
-                      .join(", ")}`
-                  : "Books can be chosen ahead of time or logged after reading."}
-              </p>
+              <DetailList className="mt-5 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:gap-x-8">
+                <DetailItem label="Reader">
+                  <span className="text-lg">
+                    {currentReaderLabels({
+                      assignments,
+                      memberNames,
+                      sessionId: next.id,
+                    }).join(", ")}
+                  </span>
+                  {corrected && (
+                    <span className="mt-1 block text-sm font-normal text-muted-foreground">
+                      Originally{" "}
+                      {originalReaderLabels({
+                        assignments,
+                        memberNames,
+                        sessionId: next.id,
+                      }).join(", ")}
+                    </span>
+                  )}
+                </DetailItem>
+                <DetailItem label="Books lined up">
+                  {books.length > 0 ? (
+                    <ul className="flex flex-wrap gap-2 pt-0.5">
+                      {books.map((b) => (
+                        <li
+                          key={b.id}
+                          className="rounded-full bg-secondary px-3 py-1 text-sm text-secondary-foreground"
+                        >
+                          {b.titleFreeform ??
+                            home.books.find((x) => x.id === b.bookId)?.title ??
+                            "Untitled"}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-sm font-normal text-muted-foreground">
+                      None yet. Choose books ahead of time or log them after reading.
+                    </span>
+                  )}
+                </DetailItem>
+              </DetailList>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href={`/sessions/${next.id}`}
