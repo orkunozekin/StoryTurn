@@ -1,4 +1,4 @@
-import { parseTheme, type Theme } from "@/lib/theme";
+import { parseTheme, type ProfileTheme, type Theme } from "@/lib/theme";
 import { cache } from "react";
 import { computeBookHistory } from "@/lib/domain/book-history";
 import { librarySearchTerm, type LibraryPage } from "@/lib/domain/library-page";
@@ -206,18 +206,18 @@ export async function getCurrentUser(): Promise<UserAccount | null> {
   return ctx.account;
 }
 
-export async function getThemePreference(): Promise<Theme | null> {
+export async function getThemePreference(): Promise<ProfileTheme> {
   const { supabase, account } = await loadContext();
-  if (!account) return null;
+  if (!account) return "unavailable";
   const { data, error } = await supabase
     .from("user_preferences")
     .select("theme")
     .eq("user_id", account.id)
     .maybeSingle();
   // The theme is cosmetic and this runs in the shared app layout: a failed read
-  // falls back to this device's choice instead of breaking every page.
-  if (error) return null;
-  return parseTheme((data as { theme?: string } | null)?.theme);
+  // leaves this device's choice alone instead of breaking every page.
+  if (error) return "unavailable";
+  return parseTheme((data as { theme?: string } | null)?.theme) ?? "unset";
 }
 
 export async function saveThemePreference(theme: Theme): Promise<void> {

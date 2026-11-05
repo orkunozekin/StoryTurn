@@ -14,12 +14,12 @@ describe("demo theme preference", () => {
 
   it("keeps each account's theme separately", () => {
     demoLogin("alex@example.com");
-    expect(getThemePreference()).toBeNull();
+    expect(getThemePreference()).toBe("unset");
     saveThemePreference("dark");
     expect(getThemePreference()).toBe("dark");
 
     demoLogin("jordan@example.com");
-    expect(getThemePreference()).toBeNull();
+    expect(getThemePreference()).toBe("unset");
     saveThemePreference("light");
 
     demoLogin("alex@example.com");
@@ -28,7 +28,7 @@ describe("demo theme preference", () => {
 
   it("needs a signed-in account to save", () => {
     demoLogout();
-    expect(getThemePreference()).toBeNull();
+    expect(getThemePreference()).toBe("unavailable");
     expect(() => saveThemePreference("dark")).toThrow(/Not signed in/);
   });
 });

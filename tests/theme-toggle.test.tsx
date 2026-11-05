@@ -58,7 +58,7 @@ it("switches at once, remembers the choice on this device, and saves it to the p
   expect(toastError).not.toHaveBeenCalled();
 });
 
-it("switches back and explains when the profile save fails", async () => {
+it("goes back to following the OS when a save fails and no theme was picked before", async () => {
   save.action.mockResolvedValue({
     ok: false,
     error: "Couldn't save your theme. Try again.",
@@ -70,8 +70,23 @@ it("switches back and explains when the profile save fails", async () => {
   await waitFor(() =>
     expect(toastError).toHaveBeenCalledWith("Couldn't save your theme. Try again."),
   );
-  expect(document.documentElement.dataset.theme).toBe("light");
+  expect(document.documentElement.dataset.theme).toBeUndefined();
+  expect(document.cookie).not.toContain(`${THEME_COOKIE}=`);
   expect(pressed("Light theme")).toBe("true");
+});
+
+it("restores the previous pick when a save fails", async () => {
+  document.documentElement.dataset.theme = "light";
+  save.action.mockResolvedValue({
+    ok: false,
+    error: "Couldn't save your theme. Try again.",
+  });
+  render(createElement(ThemeToggle));
+  fireEvent.click(screen.getByRole("button", { name: "Dark theme" }));
+
+  await waitFor(() => expect(toastError).toHaveBeenCalled());
+  expect(document.documentElement.dataset.theme).toBe("light");
+  expect(document.cookie).toContain(`${THEME_COOKIE}=light`);
 });
 
 it("applies the theme saved on the profile, without saving it again", async () => {
@@ -98,9 +113,18 @@ it("does not undo a newer pick on this device until the saved theme changes", as
 it("uploads a device-only choice when the profile has none yet", async () => {
   document.documentElement.dataset.theme = "dark";
   await act(async () => {
-    render(createElement(ThemeSync, { saved: null }));
+    render(createElement(ThemeSync, { saved: "unset" }));
   });
   expect(save.action).toHaveBeenCalledWith("dark");
+});
+
+it("leaves the device and the profile alone when the profile couldn't be read", async () => {
+  document.documentElement.dataset.theme = "dark";
+  await act(async () => {
+    render(createElement(ThemeSync, { saved: "unavailable" }));
+  });
+  expect(save.action).not.toHaveBeenCalled();
+  expect(document.documentElement.dataset.theme).toBe("dark");
 });
 
 it("only accepts known theme values", () => {

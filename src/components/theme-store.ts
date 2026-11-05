@@ -52,6 +52,13 @@ export const applyTheme = (theme: Theme) => {
   notify();
 };
 
+/** Drops the explicit choice on this device so the page follows the OS again. */
+const followOsTheme = () => {
+  delete document.documentElement.dataset.theme;
+  document.cookie = `${THEME_COOKIE}=; path=/; max-age=0; samesite=lax`;
+  notify();
+};
+
 /** Saves a theme to the profile without changing what's on screen. */
 export const persistTheme = async (theme: Theme): Promise<SaveResult> => {
   const request = ++saveRequest;
@@ -68,14 +75,18 @@ export const persistTheme = async (theme: Theme): Promise<SaveResult> => {
 
 /**
  * The toggle's click: switch at once, then save to the profile. If the save
- * fails, put the previous theme back. Returns the save result (null when
+ * fails, restore exactly what was there before: the previous explicit choice,
+ * or following the OS if there was none. Returns the save result (null when
  * nothing changed) so the caller can explain a failure.
  */
 export const selectTheme = async (next: Theme): Promise<SaveResult | null> => {
-  const previous = readTheme();
-  if (saving || next === previous) return null;
+  const previousExplicit = readExplicitTheme();
+  if (saving || next === readTheme()) return null;
   applyTheme(next);
   const result = await persistTheme(next);
-  if (!result.ok && readTheme() === next) applyTheme(previous);
+  if (!result.ok && readExplicitTheme() === next) {
+    if (previousExplicit) applyTheme(previousExplicit);
+    else followOsTheme();
+  }
   return result;
 };
