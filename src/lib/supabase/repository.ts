@@ -1,3 +1,4 @@
+import { parseTheme, type Theme } from "@/lib/theme";
 import { cache } from "react";
 import { computeBookHistory } from "@/lib/domain/book-history";
 import { librarySearchTerm, type LibraryPage } from "@/lib/domain/library-page";
@@ -203,6 +204,32 @@ async function rowsForIds<T>(
 export async function getCurrentUser(): Promise<UserAccount | null> {
   const ctx = await loadContext();
   return ctx.account;
+}
+
+export async function getThemePreference(): Promise<Theme | null> {
+  const { supabase, account } = await loadContext();
+  if (!account) return null;
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .select("theme")
+    .eq("user_id", account.id)
+    .maybeSingle();
+  // The theme is cosmetic and this runs in the shared app layout: a failed read
+  // falls back to this device's choice instead of breaking every page.
+  if (error) return null;
+  return parseTheme((data as { theme?: string } | null)?.theme);
+}
+
+export async function saveThemePreference(theme: Theme): Promise<void> {
+  const { supabase, account } = await loadContext();
+  if (!account) throw new Error("Not signed in");
+  const { error } = await supabase
+    .from("user_preferences")
+    .upsert(
+      { user_id: account.id, theme, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" },
+    );
+  assertNoError(error, "Could not save your theme");
 }
 
 export async function getCurrentMember(): Promise<FamilyMember | null> {

@@ -164,6 +164,7 @@ export function createSeedState(now = new Date()): AppState {
     corrections: [],
     readerRequests: [],
     outboundEmails: [],
+    themePreferences: {},
   };
 
   const schedule = state.schedules[0]!;
