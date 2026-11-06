@@ -17,6 +17,12 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { parseDateOnly } from "@/lib/domain/rotation";
 import {
+  SCHEDULE_LENGTHS,
+  lengthForEndDate,
+  presetEndDate,
+  type ScheduleLength,
+} from "@/lib/domain/schedule-length";
+import {
   EMPTY_POOL_MESSAGE,
   ROTATE,
   WEEKDAY_NAMES,
@@ -42,6 +48,8 @@ export type ScheduleDefaults = {
   pool: string[];
   plan: string[];
   startDate?: string;
+  /** Last night planned; null or missing means the schedule keeps going. */
+  endDate?: string | null;
   timeLocal: string;
   booksPerSession: number;
   assignRandomBooks: boolean;
@@ -56,6 +64,8 @@ type WizardState = {
   weekendReaderId: string;
   customPlan: WeekdaySlot[];
   startDate: string;
+  length: ScheduleLength;
+  customEndDate: string;
   timeLocal: string;
   starterId: string;
   booksPerSession: string;
@@ -65,7 +75,7 @@ type WizardState = {
 const STEPS = [
   { id: "readers", label: "Readers" },
   { id: "nights", label: "Nights" },
-  { id: "start", label: "Start date" },
+  { id: "start", label: "Dates" },
   { id: "starter", label: "First reader" },
   { id: "review", label: "Review" },
 ] as const;
@@ -84,13 +94,16 @@ const shortDate = (date: string) =>
 
 function initialState(defaults: ScheduleDefaults, readers: WizardReader[]): WizardState {
   const matched = matchPattern(defaults.plan);
+  const startDate = defaults.startDate ?? "";
   return {
     pool: defaults.pool,
     mode: matched ? "pattern" : "custom",
     pattern: matched?.pattern ?? "every-night",
     weekendReaderId: matched?.weekendReaderId ?? readers[0]?.id ?? "",
     customPlan: [...defaults.plan],
-    startDate: defaults.startDate ?? "",
+    startDate,
+    length: lengthForEndDate(startDate, defaults.endDate),
+    customEndDate: defaults.endDate ?? "",
     timeLocal: defaults.timeLocal,
     starterId: defaults.pool[0] ?? "",
     booksPerSession: String(defaults.booksPerSession),
@@ -102,6 +115,15 @@ function planFor(state: WizardState): WeekdaySlot[] {
   return state.mode === "pattern"
     ? patternPlan(state.pattern, state.weekendReaderId)
     : state.customPlan;
+}
+
+/** The last night to plan, or "" for a schedule with no end. */
+function endDateFor(state: WizardState): string {
+  if (state.length === "ongoing") return "";
+  if (state.length === "custom") return state.customEndDate;
+  return isDateOnly(state.startDate)
+    ? (presetEndDate(state.startDate, state.length) ?? "")
+    : "";
 }
 
 /** Problems that block saving, by the step that can fix them. */
@@ -116,6 +138,10 @@ function stepErrors(state: WizardState): Partial<Record<StepId, string>> {
   }
   if (!isDateOnly(state.startDate)) errors.start = "Choose a start date";
   else if (!state.timeLocal) errors.start = "Choose a bedtime";
+  else if (state.length === "custom" && !isDateOnly(state.customEndDate))
+    errors.start = "Choose an end date";
+  else if (state.length === "custom" && state.customEndDate < state.startDate)
+    errors.start = "The end date must be on or after the start date";
   const books = Number(state.booksPerSession);
   if (!Number.isInteger(books) || books < 1) {
     errors.review = "Books per session must be 1 or more";
@@ -200,6 +226,7 @@ function WizardForm({
     [readers],
   );
   const plan = planFor(state);
+  const endDate = endDateFor(state);
   const rotates = hasRotateNights(plan);
   const starterId = state.pool.includes(state.starterId)
     ? state.starterId
@@ -233,7 +260,13 @@ function WizardForm({
           ? "Turns every night"
           : `Weekends: ${names[state.weekendReaderId] ?? "pick a reader"}`,
     start: isDateOnly(state.startDate)
-      ? `${shortDate(state.startDate)} · ${state.timeLocal}`
+      ? [
+          shortDate(state.startDate),
+          state.timeLocal,
+          isDateOnly(endDate) ? `until ${shortDate(endDate)}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
       : "Not set",
     starter: rotates && starterId ? (names[starterId] ?? "Reader") : "No rotation",
     review: "",
@@ -262,6 +295,7 @@ function WizardForm({
         <input key={index} type="hidden" name={weekdayFieldName(index)} value={slot} />
       ))}
       <input type="hidden" name="startDate" value={state.startDate} />
+      <input type="hidden" name="endDate" value={endDate} />
       <input type="hidden" name="timeLocal" value={state.timeLocal} />
       <input type="hidden" name="booksPerSession" value={state.booksPerSession} />
       {state.assignRandomBooks && (
@@ -448,8 +482,8 @@ function WizardForm({
 
           {step.id === "start" && (
             <StepSection
-              title="When does it start?"
-              description="Nights are planned from this date, at bedtime in your timezone."
+              title="When does it run?"
+              description="Nights are planned from the start date, at bedtime in your timezone, for as long as you choose."
               error={visited.has(2) ? errors.start : undefined}
             >
               <div className="grid gap-4 sm:grid-cols-2">
@@ -473,6 +507,50 @@ function WizardForm({
                     onChange={(event) => update({ timeLocal: event.target.value })}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="wizard-length">How long?</Label>
+                  <NativeSelect
+                    id="wizard-length"
+                    value={state.length}
+                    onChange={(event) => {
+                      const length =
+                        SCHEDULE_LENGTHS.find(({ id }) => id === event.target.value)
+                          ?.id ?? "ongoing";
+                      // Start a custom date from whatever end was showing.
+                      update(
+                        length === "custom" && !state.customEndDate
+                          ? { length, customEndDate: endDate || state.startDate }
+                          : { length },
+                      );
+                    }}
+                    className="h-10"
+                  >
+                    {SCHEDULE_LENGTHS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </div>
+                {state.length === "custom" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="wizard-end-date">End date</Label>
+                    <Input
+                      id="wizard-end-date"
+                      type="date"
+                      required
+                      min={isDateOnly(state.startDate) ? state.startDate : undefined}
+                      value={state.customEndDate}
+                      onChange={(event) => update({ customEndDate: event.target.value })}
+                    />
+                  </div>
+                ) : (
+                  <p className="self-end text-sm text-muted-foreground sm:pb-2.5">
+                    {isDateOnly(endDate)
+                      ? `Last night: ${shortDate(endDate)}`
+                      : "Nights keep coming until you change or delete the schedule."}
+                  </p>
+                )}
               </div>
             </StepSection>
           )}
@@ -523,6 +601,7 @@ function WizardForm({
                 pool={rotationOrder}
                 plan={plan}
                 startDate={state.startDate}
+                endDate={endDate}
                 today={today}
                 readers={readers}
                 names={names}
@@ -698,6 +777,7 @@ function PlanPreview({
   pool,
   plan,
   startDate,
+  endDate,
   today,
   readers,
   names,
@@ -705,6 +785,8 @@ function PlanPreview({
   pool: string[];
   plan: WeekdaySlot[];
   startDate: string;
+  /** "" for no end. */
+  endDate: string;
   today: string;
   readers: WizardReader[];
   names: Record<string, string>;
@@ -718,11 +800,18 @@ function PlanPreview({
     fromDate: from,
     days: PREVIEW_DAYS,
     familyMemberIds: readers.map((reader) => reader.id),
-  });
+  }).filter((night) => !isDateOnly(endDate) || night.date <= endDate);
   if (pool.length === 0 && hasRotateNights(plan)) {
     return (
       <p role="status" className="weekday-plan__warning">
         {EMPTY_POOL_MESSAGE}
+      </p>
+    );
+  }
+  if (nights.length === 0) {
+    return (
+      <p role="status" className="weekday-plan__warning">
+        This schedule has no nights left to plan.
       </p>
     );
   }

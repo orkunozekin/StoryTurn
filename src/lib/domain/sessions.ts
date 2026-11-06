@@ -25,7 +25,7 @@ export function buildIcsUid(familyId: string, date: string): string {
 }
 
 /**
- * Drafts for missing nights up to `throughDate`. Each night's reader comes from the
+ * Drafts for missing nights up to `throughDate` (or the schedule's end date, if sooner). Each night's reader comes from the
  * weekday plan (`readerForPlanDate`): fixed weekdays go to their member and rotate
  * weekdays take the next turn in the pool, counted from the start date, so running
  * this one horizon at a time gives the same readers as running it once.
@@ -49,7 +49,10 @@ export function generateSessionsFromSchedule(params: {
   let cursor = schedule.startDate;
   if (params.nowDate && cursor < params.nowDate) cursor = params.nowDate;
 
-  while (cursor <= throughDate) {
+  const lastDate =
+    schedule.endDate && schedule.endDate < throughDate ? schedule.endDate : throughDate;
+
+  while (cursor <= lastDate) {
     if (!existingSessionDates.has(cursor)) {
       const { memberId } = readerForPlanDate({
         pool: schedule.readerRotationMemberIds,

@@ -675,6 +675,8 @@ export function saveSchedule(input: {
   /** Monday-first weekday plan; omitted means every night rotates. */
   weekdayReaders?: string[];
   startDate: string;
+  /** Last night (YYYY-MM-DD, inclusive); null means the schedule keeps going. */
+  endDate?: string | null;
   timeLocal: string;
   timezone: string;
   bookTiming: "ahead" | "after";
@@ -705,7 +707,11 @@ export function saveSchedule(input: {
     state().schedules.find((s) => s.familyId === member.familyId && s.active) ??
     state().schedules.find((s) => s.familyId === member.familyId);
   if (existing) {
-    Object.assign(existing, input, { weekdayReaders, active: true });
+    Object.assign(existing, input, {
+      weekdayReaders,
+      endDate: input.endDate ?? null,
+      active: true,
+    });
     for (const session of state().sessions.filter(
       (s) =>
         s.scheduleId === existing.id &&
@@ -719,7 +725,10 @@ export function saveSchedule(input: {
         .assignments.filter((a) => a.sessionId === session.id && a.isCurrent)
         .map((a) => a.memberId);
       const wasCancelled = session.status === "cancelled";
-      const reader = day < input.startDate ? null : readerOn(day);
+      const reader =
+        day < input.startDate || (input.endDate && day > input.endDate)
+          ? null
+          : readerOn(day);
       if (!reader) {
         if (wasCancelled) continue;
         session.calendarSequence = (session.calendarSequence ?? 0) + 1;
@@ -761,6 +770,7 @@ export function saveSchedule(input: {
     readerRotationMemberIds: input.readerRotationMemberIds,
     weekdayReaders,
     startDate: input.startDate,
+    endDate: input.endDate ?? null,
     timeLocal: input.timeLocal,
     timezone: input.timezone,
     bookTiming: input.bookTiming,

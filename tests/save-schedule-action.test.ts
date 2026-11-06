@@ -45,3 +45,18 @@ it("rejects a form missing a weekday before saving", async () => {
   ).rejects.toThrow("Choose who reads on Sunday");
   expect(mocks.saveSchedule).not.toHaveBeenCalled();
 });
+
+it("posts the end date, or null for a schedule with no end", async () => {
+  const plan = Array.from({ length: 7 }, () => "rotate");
+  const data = scheduleForm(plan);
+  data.set("endDate", "2026-11-15");
+  await saveScheduleAction(data);
+  expect(mocks.saveSchedule).toHaveBeenLastCalledWith(
+    expect.objectContaining({ endDate: "2026-11-15" }),
+  );
+  data.set("endDate", "");
+  await saveScheduleAction(data);
+  expect(mocks.saveSchedule).toHaveBeenLastCalledWith(
+    expect.objectContaining({ endDate: null }),
+  );
+});

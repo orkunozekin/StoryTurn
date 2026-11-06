@@ -124,6 +124,7 @@ export function mapSchedule(row: Row): Schedule {
     readerRotationMemberIds: Array.isArray(ids) ? ids.map(String) : [],
     weekdayReaders: normalizeWeekdayPlan(row.weekday_readers),
     startDate: str(row, "start_date").slice(0, 10),
+    endDate: row.end_date ? String(row.end_date).slice(0, 10) : null,
     timeLocal: toTimeHm(str(row, "time_local")),
     timezone: str(row, "timezone"),
     bookTiming: timing === "ahead" ? "ahead" : "after",

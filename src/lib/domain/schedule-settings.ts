@@ -1,6 +1,16 @@
 import { isValidTimezone } from "@/lib/domain/timezones";
+const isCalendarDate = (value: string) => {
+  const date = new Date(`${value}T00:00:00Z`);
+  return (
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value
+  );
+};
+
 export function assertScheduleSettings(input: {
   startDate: string;
+  endDate?: string | null;
   timeLocal: string;
   timezone: string;
   booksPerSession?: number;
@@ -16,13 +26,12 @@ export function assertScheduleSettings(input: {
     typeof input.assignRandomBooks !== "boolean"
   )
     throw new Error("Choose whether to assign random books");
-  const date = new Date(`${input.startDate}T00:00:00Z`);
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) ||
-    Number.isNaN(date.getTime()) ||
-    date.toISOString().slice(0, 10) !== input.startDate
-  )
-    throw new Error("Enter a valid start date");
+  if (!isCalendarDate(input.startDate)) throw new Error("Enter a valid start date");
+  if (input.endDate != null) {
+    if (!isCalendarDate(input.endDate)) throw new Error("Enter a valid end date");
+    if (input.endDate < input.startDate)
+      throw new Error("The schedule must end on or after its start date");
+  }
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.timeLocal))
     throw new Error("Enter a valid bedtime");
   if (!isValidTimezone(input.timezone))

@@ -294,3 +294,61 @@ describe("generate_schedule_night after someone leaves", () => {
     );
   });
 });
+
+describe("manage_schedule with an end date", () => {
+  async function saveUntil(endsOn: string | null, startsOn = today) {
+    await as(owner);
+    return db.query(
+      "select * from manage_schedule($1::uuid[], $2::date, '19:30', 'UTC', 'after', false, 1, false, null, $3::date)",
+      [[members.owner, members.jordan], startsOn, endsOn],
+    );
+  }
+  const cancelledDays = async () =>
+    (
+      await db.query<{ day: string }>(
+        `select (scheduled_for at time zone 'UTC')::date::text as day from reading_sessions
+         where family_id = $1 and status = 'cancelled' and cancellation_source = 'schedule'
+         order by scheduled_for`,
+        [fid],
+      )
+    ).rows.map((row) => row.day);
+
+  it("stores the end date and never generates a night after it", async () => {
+    await saveUntil(addDays(today, 4));
+    const row = await db.query<{ end_date: string | null }>(
+      "select end_date::text from schedules where family_id = $1 and active",
+      [fid],
+    );
+    expect(row.rows[0].end_date).toBe(addDays(today, 4));
+    await generate(14);
+    expect((await nights()).map((night) => night.day)).toEqual(
+      Array.from({ length: 5 }, (_, i) => addDays(today, i)),
+    );
+  });
+
+  it("cancels nights after a shorter end and brings them back when it grows", async () => {
+    await saveUntil(null);
+    await generate(10);
+    await saveUntil(addDays(today, 6));
+    expect(await cancelledDays()).toEqual([
+      addDays(today, 7),
+      addDays(today, 8),
+      addDays(today, 9),
+    ]);
+    expect(await nights()).toHaveLength(7);
+    await saveUntil(null);
+    expect(await cancelledDays()).toEqual([]);
+    expect(await nights()).toHaveLength(10);
+  });
+
+  it("rejects an end before the start", async () => {
+    await expect(saveUntil(addDays(today, -1))).rejects.toThrow(
+      /end on or after its start date/,
+    );
+    await as(owner);
+    const { id } = (await scheduleRow())!;
+    await expect(
+      db.query("update schedules set end_date = start_date - 1 where id = $1", [id]),
+    ).rejects.toThrow(/schedules_end_after_start/);
+  });
+});
