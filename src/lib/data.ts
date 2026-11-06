@@ -90,6 +90,8 @@ export async function saveSchedule(input: {
   /** Monday-first: "rotate" or a family member id for each of the 7 weekdays. */
   weekdayReaders?: string[];
   startDate: string;
+  /** Last night (YYYY-MM-DD, inclusive); null means the schedule keeps going. */
+  endDate?: string | null;
   timeLocal: string;
   timezone: string;
   bookTiming: "ahead" | "after";

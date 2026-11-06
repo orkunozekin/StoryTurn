@@ -80,6 +80,8 @@ export interface Schedule {
    */
   weekdayReaders?: string[];
   startDate: string; // YYYY-MM-DD
+  /** Last night planned (YYYY-MM-DD, inclusive); null or missing means no end. */
+  endDate?: string | null;
   timeLocal: string; // HH:mm
   timezone: string;
   bookTiming: BookTiming;

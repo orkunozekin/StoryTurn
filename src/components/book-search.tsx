@@ -103,9 +103,6 @@ function DuplicateOption({
           <p className="text-sm text-muted-foreground">
             {book.authors.join(", ") || "Unknown author"}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {book.isbn ? `ISBN ${book.isbn}` : "No ISBN"}
-          </p>
         </div>
       </div>
       <Button
@@ -174,7 +171,7 @@ export function BookSearch({ collectionKeys }: { collectionKeys: string[] }) {
         setDuplicate(null);
         toast.message({
           title: `"${result.existing.title}" is already in your library`,
-          description: "Same ISBN / barcode, so we kept the one you added first.",
+          description: "It’s the same edition, so we kept the one you added first.",
         });
         return;
       case "possible_duplicate":
@@ -308,7 +305,7 @@ export function BookSearch({ collectionKeys }: { collectionKeys: string[] }) {
             <DialogHeader>
               <DialogTitle>This looks like a book you already have</DialogTitle>
               <DialogDescription>
-                Same title and author, different ISBN. Pick which copy to keep. We
+                Same title and author, different edition. Pick which copy to keep. We
                 recommend the one with more details, like a cover picture.
               </DialogDescription>
             </DialogHeader>

@@ -824,6 +824,7 @@ describe("saving a weekday plan", () => {
       rotation_ids: ["parent", "reader"],
       weekday_plan: plan,
       starts_on: "2026-10-05",
+      ends_on: null,
     });
     const readers = fixture.tables.reading_sessions.map((night) => [
       String(night.scheduled_for).slice(0, 10),

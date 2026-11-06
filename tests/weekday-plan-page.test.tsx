@@ -126,7 +126,7 @@ describe("schedule wizard", () => {
     expect(rail.map((step) => step.getAttribute("aria-label"))).toEqual([
       "Readers",
       "Nights",
-      "Start date",
+      "Dates",
       "First reader",
       "Review",
     ]);
@@ -137,7 +137,7 @@ describe("schedule wizard", () => {
     expect(
       screen.getByRole("button", { name: "How book assignments work" }),
     ).toBeInTheDocument();
-    await goToStep(user, /^Start date/);
+    await goToStep(user, /^Dates/);
     expect(screen.getByLabelText("Start date", { selector: "input" })).toHaveValue(
       "2026-11-02",
     );
@@ -199,6 +199,61 @@ describe("schedule wizard", () => {
     await waitFor(() =>
       expect(screen.queryByRole("heading", { name: "Nights assigned" })).toBeNull(),
     );
+  });
+
+  it("saves how long the schedule lasts and previews only those nights", async () => {
+    const { action, user } = setup();
+    await user.click(screen.getByRole("button", { name: "Create schedule" }));
+    await goToStep(user, /^Dates/);
+    expect(screen.getByLabelText("How long?")).toHaveValue("ongoing");
+    await user.selectOptions(screen.getByLabelText("How long?"), "1w");
+    expect(screen.getByText("Last night: Sun, Nov 8")).toBeInTheDocument();
+    expect(within(steps()).getByRole("button", { name: /^Dates/ }).textContent).toContain(
+      "until Sun, Nov 8",
+    );
+    await goToStep(user, /^Review/);
+    expect(previewReaders()).toHaveLength(7);
+    await user.click(screen.getByRole("button", { name: "Save schedule" }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    expect(posted(action).get("endDate")).toBe("2026-11-08");
+  });
+
+  it("takes a custom end date and blocks one before the start", async () => {
+    const { action, user } = setup();
+    await user.click(screen.getByRole("button", { name: "Create schedule" }));
+    await goToStep(user, /^Dates/);
+    await user.selectOptions(screen.getByLabelText("How long?"), "custom");
+    const endInput = screen.getByLabelText("End date", { selector: "input" });
+    await user.clear(endInput);
+    await user.type(endInput, "2026-11-01");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "The end date must be on or after the start date",
+    );
+    await goToStep(user, /^Review/);
+    await user.click(screen.getByRole("button", { name: "Save schedule" }));
+    expect(action).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: "When does it run?" }),
+    ).toBeInTheDocument();
+    const fixed = screen.getByLabelText("End date", { selector: "input" });
+    await user.clear(fixed);
+    await user.type(fixed, "2026-11-20");
+    await goToStep(user, /^Review/);
+    await user.click(screen.getByRole("button", { name: "Save schedule" }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    expect(posted(action).get("endDate")).toBe("2026-11-20");
+  });
+
+  it("posts no end date for an ongoing schedule and reopens a saved length", async () => {
+    const { action, user } = setup({ endDate: "2027-02-01" }, true);
+    await user.click(screen.getByRole("button", { name: "Edit schedule" }));
+    await goToStep(user, /^Dates/);
+    expect(screen.getByLabelText("How long?")).toHaveValue("3m");
+    await user.selectOptions(screen.getByLabelText("How long?"), "ongoing");
+    await goToStep(user, /^Review/);
+    await user.click(screen.getByRole("button", { name: "Save schedule" }));
+    await waitFor(() => expect(action).toHaveBeenCalled());
+    expect(posted(action).get("endDate")).toBe("");
   });
 
   it("assigns days by hand", async () => {
