@@ -184,3 +184,22 @@ describe("demo weekday plan", () => {
     expect(readerOn(addDays(SATURDAY, 7))).toBe("mem_jordan");
   });
 });
+
+describe("demo schedule end date", () => {
+  it("stops generating after the end date and cancels later nights", () => {
+    const input = baseInput();
+    store.saveSchedule({ ...input, startDate: TODAY, endDate: addDays(TODAY, 4) });
+    const state = store.getDemoState();
+    const future = state.sessions.filter((s) => sessionDateKey(s.scheduledFor) >= TODAY);
+    const scheduledDays = future
+      .filter((s) => s.status === "scheduled")
+      .map((s) => sessionDateKey(s.scheduledFor))
+      .sort();
+    expect(scheduledDays).toEqual(Array.from({ length: 5 }, (_, i) => addDays(TODAY, i)));
+    expect(store.getFamilyAdmin()!.schedule!.endDate).toBe(addDays(TODAY, 4));
+
+    store.saveSchedule({ ...input, startDate: TODAY, endDate: null });
+    expect(readerOn(addDays(TODAY, 10))).toBeDefined();
+    expect(store.getFamilyAdmin()!.schedule!.endDate).toBeNull();
+  });
+});

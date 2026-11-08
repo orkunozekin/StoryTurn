@@ -972,6 +972,8 @@ export async function saveSchedule(input: {
   /** Monday-first weekday plan; omitted means every night rotates. */
   weekdayReaders?: string[];
   startDate: string;
+  /** Last night (YYYY-MM-DD, inclusive); null means the schedule keeps going. */
+  endDate?: string | null;
   timeLocal: string;
   timezone: string;
   bookTiming: "ahead" | "after";
@@ -993,6 +995,7 @@ export async function saveSchedule(input: {
     rotation_ids: input.readerRotationMemberIds,
     weekday_plan: weekdayPlan,
     starts_on: input.startDate,
+    ends_on: input.endDate ?? null,
     bedtime: input.timeLocal,
     zone: input.timezone,
     timing: input.bookTiming,

@@ -175,8 +175,11 @@ export default async function SchedulePage({
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {rotationNames || "No one rotates"} · from{" "}
-                    {formatMonthDay(admin.schedule.startDate)} at{" "}
-                    {admin.schedule.timeLocal}
+                    {formatMonthDay(admin.schedule.startDate)}
+                    {admin.schedule.endDate
+                      ? ` to ${formatMonthDay(admin.schedule.endDate)}`
+                      : ""}{" "}
+                    at {admin.schedule.timeLocal}
                   </p>
                 </>
               ) : (
@@ -201,6 +204,7 @@ export default async function SchedulePage({
                   : defaultRotationPool(admin.readers),
                 plan: effectiveWeekdayPlan(admin.schedule?.weekdayReaders, readerIds),
                 startDate: admin.schedule?.startDate ?? today,
+                endDate: admin.schedule?.endDate ?? null,
                 timeLocal: admin.schedule?.timeLocal ?? "19:30",
                 booksPerSession: admin.schedule?.booksPerSession ?? 3,
                 assignRandomBooks: admin.schedule?.assignRandomBooks ?? true,

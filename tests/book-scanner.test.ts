@@ -213,16 +213,28 @@ it("shows newest scans first and lets users dismiss failed lookups", async () =>
     kind: "unknown",
   });
   await open();
+  const dismissButtons = () =>
+    screen.queryAllByRole("button", { name: "Dismiss unknown book" });
   enter();
-  await screen.findByRole("button", { name: "Dismiss 9780060775858" });
+  await waitFor(() => expect(dismissButtons()).toHaveLength(1));
   enter("9780804429573");
-  await screen.findByRole("button", { name: "Dismiss 9780804429573" });
-  expect(screen.getAllByRole("listitem")[0].textContent).toContain("9780804429573");
-  fireEvent.click(screen.getByRole("button", { name: "Dismiss 9780060775858" }));
+  await waitFor(() => expect(dismissButtons()).toHaveLength(2));
+  // Failed rows never show the ISBN itself.
+  expect(screen.getAllByRole("listitem")[0].textContent).not.toContain("978");
+  expect(screen.getAllByRole("listitem")[0].textContent).toContain("Unknown book");
+  // The newest scan is listed first, so this dismisses 9780804429573.
+  fireEvent.click(dismissButtons()[0]!);
   expect(screen.getAllByRole("listitem")).toHaveLength(1);
   expect(removeBooksAction).not.toHaveBeenCalled();
+  // The first scan is still listed, so entering it again is ignored...
   enter();
-  await screen.findByRole("button", { name: "Dismiss 9780060775858" });
+  expect(scanBookAction).toHaveBeenCalledTimes(2);
+  // ...while the dismissed one can be scanned again.
+  enter("9780804429573");
+  await waitFor(() => expect(dismissButtons()).toHaveLength(2));
   expect(scanBookAction).toHaveBeenCalledTimes(3);
-  expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  expect(scanBookAction).toHaveBeenLastCalledWith(
+    "9780804429573",
+    "00000000-0000-0000-0000-000000000001",
+  );
 });

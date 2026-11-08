@@ -245,6 +245,7 @@ export async function saveScheduleAction(formData: FormData) {
     readerRotationMemberIds: readers,
     weekdayReaders,
     startDate: String(formData.get("startDate")),
+    endDate: String(formData.get("endDate") ?? "") || null,
     timeLocal: String(formData.get("timeLocal")),
     timezone: String(formData.get("timezone") ?? ""),
     booksPerSession: Number(formData.get("booksPerSession") ?? 1),

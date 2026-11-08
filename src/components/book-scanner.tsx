@@ -140,7 +140,7 @@ export function BookScanner() {
       setRows((current) => [{ isbn: code, status: "Queued" }, ...current]);
     } else patch(code, { status: "Queued", retryable: false });
     queue.current.push(code);
-    setMessage(`Captured ${code}`);
+    setMessage("Got it. Looking up the book…");
     setIsbn("");
     drain();
   }
@@ -410,7 +410,7 @@ export function BookScanner() {
                     size="icon-sm"
                     variant="ghost"
                     className="absolute right-1 top-1"
-                    aria-label={`Dismiss ${row.isbn}`}
+                    aria-label={`Dismiss ${row.book?.title ?? "unknown book"}`}
                     disabled={finishing}
                     onClick={() => {
                       seen.current.delete(row.isbn);
@@ -431,7 +431,7 @@ export function BookScanner() {
                   />
                 )}
                 <div className="min-w-0 flex-1 space-y-1 break-words pr-7">
-                  <p className="font-semibold">{row.book?.title ?? row.isbn}</p>
+                  <p className="font-semibold">{row.book?.title ?? "Unknown book"}</p>
                   {row.book && (
                     <>
                       <p>{row.book.authors.join(", ") || "Unknown author"}</p>
