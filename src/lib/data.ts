@@ -19,6 +19,10 @@ export async function getCurrentMember() {
   return isDemoMode() ? demo.getCurrentMember() : live.getCurrentMember();
 }
 
+export async function listFamilyMembers() {
+  return isDemoMode() ? demo.listFamilyMembers() : live.listFamilyMembers();
+}
+
 export async function getThemePreference() {
   return isDemoMode() ? demo.getThemePreference() : live.getThemePreference();
 }

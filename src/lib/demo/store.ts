@@ -187,6 +187,13 @@ export function getCurrentMember(): FamilyMember | null {
   return state().members.find((m) => m.userId === user.id) ?? null;
 }
 
+/** Everyone in the current member's family. */
+export function listFamilyMembers(): FamilyMember[] {
+  const member = getCurrentMember();
+  if (!member) return [];
+  return state().members.filter((m) => m.familyId === member.familyId);
+}
+
 export function demoLogin(email: string): UserAccount {
   const normalized = email.trim().toLowerCase();
   const existing = state().users.find((u) => u.email === normalized);

@@ -103,10 +103,10 @@ it("closes an expanded mobile panel when desktop navigation appears", async () =
   ).toBe(true);
 });
 
-it("shows only the first name in the menu and names the account on Sign out", () => {
-  render(createElement(AppNav, { displayName: "Alex Morgan Smith" }));
-  expect(screen.queryByText("Alex Morgan Smith")).toBeNull();
-  expect(screen.getAllByText("Alex").length).toBeGreaterThan(0);
-  // Last names stay hidden, even in the Sign out tooltip.
-  expect(document.querySelector('[title="Signed in as Alex"]')).not.toBeNull();
+it("shows the family display name it is given, in the menu and on Sign out", () => {
+  // The layout resolves the name: first name only, unless someone in the
+  // family shares it, in which case the full name keeps them apart.
+  render(createElement(AppNav, { displayName: "Alex Smith" }));
+  expect(screen.getAllByText("Alex Smith").length).toBeGreaterThan(0);
+  expect(document.querySelector('[title="Signed in as Alex Smith"]')).not.toBeNull();
 });

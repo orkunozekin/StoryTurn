@@ -238,6 +238,13 @@ export async function getCurrentMember(): Promise<FamilyMember | null> {
   return ctx.member;
 }
 
+/** Everyone in the current member's family. */
+export async function listFamilyMembers(): Promise<FamilyMember[]> {
+  const ctx = await loadContext();
+  if (!ctx.member) return [];
+  return familyReaders(ctx.supabase, ctx.member.familyId);
+}
+
 async function familyReaders(
   supabase: SupabaseClient,
   familyId: string,
