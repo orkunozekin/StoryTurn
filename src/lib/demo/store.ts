@@ -11,7 +11,7 @@ import {
   assertScheduleSettings,
   selectRandomBooks,
 } from "@/lib/domain/schedule-settings";
-import { dateInTimezone } from "@/lib/domain/calendar-date";
+import { dateInTimezone, dateTimeInTimezone } from "@/lib/domain/calendar-date";
 import {
   buildCascadePlan,
   orderedFutureScheduledNights,
@@ -856,7 +856,7 @@ export function getHomeContext() {
     sessions: state().sessions.filter((s) => s.familyId === member.familyId),
     assignments: state().assignments,
     memberId: member.id,
-    nowIso: dateInTimezone(new Date(), timezone),
+    nowIso: dateTimeInTimezone(new Date(), timezone),
   });
   return {
     user,
