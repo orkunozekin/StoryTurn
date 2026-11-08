@@ -6,12 +6,12 @@ import {
   effectivePool,
   effectiveWeekdayPlan,
 } from "@/lib/domain/weekday-plan";
+import { sessionListFilter } from "@/lib/domain/session-presentation";
 import {
-  SESSION_LIST_FILTERS,
-  sessionFilterParam,
-  sessionListFilter,
-  type SessionListFilter,
-} from "@/lib/domain/session-presentation";
+  ReadingNightsList,
+  type ReadingNightRow,
+} from "@/components/reading-nights-list";
+import type { ReadingSession } from "@/lib/types";
 import { ConfirmationForm } from "@/components/confirmation-form";
 import { BackLink } from "@/components/back-link";
 export const dynamic = "force-dynamic";
@@ -33,7 +33,6 @@ import {
   getCurrentMember,
   getCurrentUser,
   getFamilyAdmin,
-  getFamilySessionPage,
   getUpcomingBookCtaState,
   listFamilyAssignments,
   listFamilySessions,
@@ -52,44 +51,8 @@ import {
 import { childRelationLabel } from "@/lib/domain/relations";
 import { SESSION_BOOK_PICK_COUNT } from "@/lib/domain/session-books";
 import { effectiveStatus, isUpcomingNight } from "@/lib/domain/sessions";
-import { sessionPageNumbers } from "@/lib/domain/session-presentation";
-import Link from "next/link";
-import { SessionStatusBadge } from "@/components/session-status";
-import { buttonVariants } from "@/components/ui/button";
 import "./schedule.css";
 import { familyDisplayNames } from "@/lib/first-name";
-
-const FILTER_LABELS: Record<SessionListFilter, string> = {
-  upcoming: "Coming up",
-  past: "Past",
-  canceled: "Canceled",
-  all: "All",
-};
-
-const EMPTY_MESSAGES: Record<SessionListFilter, string> = {
-  upcoming: "No nights coming up.",
-  past: "No past nights yet.",
-  canceled: "No canceled nights.",
-  all: "No reading nights yet.",
-};
-
-function countText(filter: SessionListFilter, total: number): string {
-  const nights = total === 1 ? "night" : "nights";
-  if (filter === "upcoming") return `${total} ${nights} coming up`;
-  if (filter === "past") return `${total} past ${nights}`;
-  if (filter === "canceled") return `${total} canceled ${nights}`;
-  return `${total} ${nights}`;
-}
-
-/** Filter pills omit `page` so switching filters always starts on page 1. */
-function scheduleHref(filter: SessionListFilter, page?: number) {
-  const params = new URLSearchParams();
-  if (page !== undefined) params.set("page", String(page));
-  const status = sessionFilterParam(filter);
-  if (status) params.set("status", status);
-  const query = params.toString();
-  return query ? `/schedule?${query}` : "/schedule";
-}
 
 export default async function SchedulePage({
   searchParams,
@@ -104,13 +67,12 @@ export default async function SchedulePage({
   if (!admin) redirect("/onboarding");
 
   const { page: requestedPage, status: requestedStatus } = await searchParams;
+  const requestedPageParam =
+    typeof requestedPage === "string" ? requestedPage : undefined;
   const filter = sessionListFilter(requestedStatus);
   const isOwner = member.role === "owner";
   const timeZone = admin.schedule?.timezone ?? DEFAULT_FAMILY_TIMEZONE;
   const today = formatDateOnlyInTimeZone(new Date(), timeZone);
-  const pagination = await getFamilySessionPage(requestedPage, filter, today);
-  const assignments = pagination.assignments;
-  const sessions = pagination.items;
   const names = familyDisplayNames(admin.readers);
   const readerIds = admin.readers.map((reader) => reader.id);
   const rotationNames = effectivePool(
@@ -138,12 +100,50 @@ export default async function SchedulePage({
     : [];
   const futureScheduled = allSessions.filter((s) => isUpcomingNight(s, today));
 
+  const currentAssignments = allAssignments.filter((a) => a.isCurrent);
   const readerLabel = (sessionId: string) =>
-    [...assignments, ...allAssignments]
-      .filter((a) => a.sessionId === sessionId && a.isCurrent)
-      .filter((a, index, all) => all.findIndex((row) => row.id === a.id) === index)
+    currentAssignments
+      .filter((a) => a.sessionId === sessionId)
       .map((a) => names[a.memberId] ?? "Reader")
       .join(", ");
+
+  // The list filters and pages in the browser, so every night is sent once here.
+  const askPanel = (session: ReadingSession) => {
+    if (
+      isOwner ||
+      currentAssignments.some(
+        (a) => a.sessionId === session.id && a.memberId === member.id,
+      )
+    )
+      return null;
+    const mine = myLatestRequest(requests, session.id, member.id);
+    const canRequest = canRequestNight({
+      member,
+      session,
+      assignments: currentAssignments,
+      requests,
+      today,
+    }).ok;
+    if (!canRequest && mine?.status !== "pending") return null;
+    return (
+      <AskToReadPanel
+        compact
+        sessionId={session.id}
+        nightLabel={formatRelativeSessionWhen(session.scheduledFor, { today, timeZone })}
+        myRequest={mine}
+        canRequest={canRequest}
+      />
+    );
+  };
+  const nightRows: ReadingNightRow[] = allSessions.map((session) => ({
+    id: session.id,
+    status: session.status,
+    scheduledFor: session.scheduledFor,
+    when: formatRelativeSessionWhen(session.scheduledFor, { today, timeZone }),
+    badgeStatus: effectiveStatus(session, today),
+    readers: readerLabel(session.id),
+    ask: askPanel(session),
+  }));
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -360,117 +360,13 @@ export default async function SchedulePage({
           <h2 id="reading-nights" className="font-display text-xl">
             Reading nights
           </h2>
-          <nav aria-label="Filter reading nights" className="chip-row mt-3">
-            {SESSION_LIST_FILTERS.map((option) => (
-              <Link
-                key={option}
-                href={scheduleHref(option)}
-                scroll={false}
-                className="chip schedule-filter-chip"
-                aria-current={option === filter ? "page" : undefined}
-              >
-                {FILTER_LABELS[option]}
-                <span className="schedule-filter-chip__count">
-                  {pagination.counts[option]}
-                </span>
-              </Link>
-            ))}
-          </nav>
-          <ul className="mt-4 space-y-2">
-            {sessions.map((session) => (
-              <li key={session.id}>
-                <Link
-                  href={`/sessions/${session.id}`}
-                  className="story-panel panel-interactive grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-x-3 gap-y-1 rounded-xl px-4 py-3 hover:border-primary/40 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)]"
-                >
-                  <span className="min-w-0 break-words">
-                    {formatRelativeSessionWhen(session.scheduledFor, {
-                      today,
-                      timeZone,
-                    })}
-                  </span>
-                  <SessionStatusBadge
-                    status={effectiveStatus(session, today)}
-                    className="col-start-2 row-start-1 justify-self-center"
-                  />
-                  <span className="col-start-1 row-start-2 min-w-0 break-words text-sm text-muted-foreground sm:col-start-3 sm:row-start-1 sm:text-right">
-                    {readerLabel(session.id)}
-                  </span>
-                </Link>
-                {(() => {
-                  if (
-                    isOwner ||
-                    assignments.some(
-                      (a) =>
-                        a.sessionId === session.id &&
-                        a.memberId === member.id &&
-                        a.isCurrent,
-                    )
-                  )
-                    return null;
-                  const mine = myLatestRequest(requests, session.id, member.id);
-                  const canRequest = canRequestNight({
-                    member,
-                    session,
-                    assignments,
-                    requests,
-                    today,
-                  }).ok;
-                  if (!canRequest && mine?.status !== "pending") return null;
-                  return (
-                    <div className="mt-1 flex justify-end px-1">
-                      <AskToReadPanel
-                        compact
-                        sessionId={session.id}
-                        nightLabel={formatRelativeSessionWhen(session.scheduledFor, {
-                          today,
-                          timeZone,
-                        })}
-                        myRequest={mine}
-                        canRequest={canRequest}
-                      />
-                    </div>
-                  );
-                })()}
-              </li>
-            ))}
-          </ul>
-          {pagination.total === 0 ? (
-            <p className="mt-4 text-muted-foreground">{EMPTY_MESSAGES[filter]}</p>
-          ) : (
-            <nav
-              aria-label="Session pages"
-              className="mt-4 flex flex-wrap items-center justify-between gap-3"
-            >
-              <div className="flex flex-wrap gap-2">
-                {sessionPageNumbers(pagination.page, pagination.pageCount).map(
-                  (page, index) =>
-                    page === "ellipsis" ? (
-                      <span key={`gap-${index}`} className="px-2 py-2" aria-hidden="true">
-                        …
-                      </span>
-                    ) : (
-                      <Link
-                        key={page}
-                        href={scheduleHref(filter, page)}
-                        aria-label={`Page ${page}`}
-                        aria-current={page === pagination.page ? "page" : undefined}
-                        className={buttonVariants({
-                          variant: page === pagination.page ? "default" : "outline",
-                          size: "sm",
-                        })}
-                      >
-                        {page}
-                      </Link>
-                    ),
-                )}
-              </div>
-              <span className="text-sm" aria-live="polite">
-                Page {pagination.page} of {pagination.pageCount} ·{" "}
-                {countText(filter, pagination.total)}
-              </span>
-            </nav>
-          )}
+          <ReadingNightsList
+            key={`${filter}:${requestedPageParam ?? ""}`}
+            rows={nightRows}
+            today={today}
+            initialFilter={filter}
+            initialPage={requestedPageParam}
+          />
         </section>
       </main>
     </div>
