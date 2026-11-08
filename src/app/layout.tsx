@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Atkinson_Hyperlegible, JetBrains_Mono, Young_Serif } from "next/font/google";
+import { SiteFooter } from "@/components/site-footer";
 import { ToastProvider } from "@/components/toast-provider";
 import { hydrateDemoSessionFromCookie } from "@/lib/demo-session";
 import { THEME_COOKIE, parseTheme } from "@/lib/theme";
@@ -42,7 +43,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${display.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          {/* Grows to fill short pages so the footer stays at the bottom. */}
+          <div className="flex flex-1 flex-col">{children}</div>
+          <SiteFooter />
+        </ToastProvider>
       </body>
     </html>
   );
