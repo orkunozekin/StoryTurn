@@ -57,7 +57,8 @@ it("shows Tonight on home using local midnight and Tomorrow for the next calenda
   schedule.timezone = "America/Chicago";
   const today = state.sessions.find((s) => s.status === "scheduled")!;
   state.sessions = [today];
-  today.scheduledFor = "2026-10-04T19:30:00";
+  // 21:00 in Chicago (02:00 UTC the next day): tonight's 21:30 night is still ahead.
+  today.scheduledFor = "2026-10-04T21:30:00";
   state.assignments = [
     {
       id: "a",
@@ -71,6 +72,14 @@ it("shows Tonight on home using local midnight and Tomorrow for the next calenda
   expect(renderToStaticMarkup(await HomePage())).toContain("Tonight at");
   today.scheduledFor = "2026-10-05T19:30:00";
   expect(renderToStaticMarkup(await HomePage())).toContain("Tomorrow at");
+
+  // Once tonight's night has been over for a while (19:30, now 21:00), home moves on.
+  today.scheduledFor = "2026-10-04T19:30:00";
+  state.sessions.push({ ...today, id: "tomorrow", scheduledFor: "2026-10-05T19:30:00" });
+  state.assignments.push({ ...state.assignments[0], id: "b", sessionId: "tomorrow" });
+  const later = renderToStaticMarkup(await HomePage());
+  expect(later).toContain("Tomorrow at");
+  expect(later).toContain('href="/sessions/tomorrow"');
 });
 
 it("shows the final partial page and an empty list without invalid navigation", async () => {
@@ -122,6 +131,7 @@ it("generates tonight before rendering its local-date label", async () => {
   Object.assign(state.schedules[0], {
     timezone: "America/Chicago",
     startDate: "2026-10-04",
+    timeLocal: "21:30",
     readerRotationMemberIds: ["mem_alex"],
   });
   store.ensureUpcomingSessions(1);

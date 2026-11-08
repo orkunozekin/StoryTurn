@@ -1,3 +1,4 @@
+import { dateTimeInTimezone } from "@/lib/domain/calendar-date";
 import { describe, expect, it } from "vitest";
 import {
   generateSessionsFromSchedule,
@@ -93,5 +94,52 @@ describe("nextSessionForMember", () => {
       nowIso: "2026-10-03T12:00:00.000Z",
     });
     expect(next?.id).toBe("s2");
+  });
+
+  it("moves past tonight's night once it has been over for a while", () => {
+    const night = (id: string, scheduledFor: string): ReadingSession => ({
+      id,
+      familyId: "fam1",
+      scheduleId: "sch1",
+      scheduledFor,
+      status: "scheduled",
+      notes: null,
+      icsUid: id,
+      createdAt: "",
+      updatedAt: "",
+    });
+    const sessions = [
+      night("tonight", "2026-10-04T19:30:00"),
+      night("tomorrow", "2026-10-05T19:30:00"),
+    ];
+    const assignments: SessionAssignment[] = sessions.map((s) => ({
+      id: `a-${s.id}`,
+      sessionId: s.id,
+      memberId: "mem_a",
+      isOriginal: true,
+      isCurrent: true,
+      createdAt: "",
+    }));
+    const nextAt = (nowIso: string) =>
+      nextSessionForMember({ sessions, assignments, memberId: "mem_a", nowIso })?.id;
+
+    expect(nextAt("2026-10-04T18:00:00")).toBe("tonight");
+    // Still the next night while reading is likely under way.
+    expect(nextAt("2026-10-04T20:15:00")).toBe("tonight");
+    // 3.5 hours later it is over.
+    expect(nextAt("2026-10-04T23:00:00")).toBe("tomorrow");
+    expect(nextAt("2026-10-04T20:31:00")).toBe("tomorrow");
+    // A bare date still compares whole days.
+    expect(nextAt("2026-10-04")).toBe("tonight");
+  });
+});
+
+describe("dateTimeInTimezone", () => {
+  it("gives the local wall-clock time", () => {
+    const at = new Date("2026-10-05T02:30:15Z");
+    expect(dateTimeInTimezone(at, "America/Chicago")).toBe("2026-10-04T21:30:15");
+    expect(dateTimeInTimezone(new Date("2026-10-05T05:00:00Z"), "America/Chicago")).toBe(
+      "2026-10-05T00:00:00",
+    );
   });
 });

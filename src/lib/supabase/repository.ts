@@ -10,7 +10,7 @@ import {
   type SessionListFilter,
 } from "@/lib/domain/session-presentation";
 import { assertScheduleSettings } from "@/lib/domain/schedule-settings";
-import { dateInTimezone } from "@/lib/domain/calendar-date";
+import { dateInTimezone, dateTimeInTimezone } from "@/lib/domain/calendar-date";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { applyReassignment, buildCorrectionRecord } from "@/lib/domain/corrections";
 import {
@@ -329,7 +329,7 @@ export async function getHomeContext() {
     sessions,
     assignments,
     memberId: member.id,
-    nowIso: dateInTimezone(new Date(), timezone),
+    nowIso: dateTimeInTimezone(new Date(), timezone),
   });
 
   const [sessionBooks, corrections, books] = nextSession

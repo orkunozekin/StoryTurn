@@ -100,14 +100,32 @@ export function canEditFreely(
   return !isPastSession(session.scheduledFor, nowIso);
 }
 
+/** How long after its start a night still counts as the member's next one. */
+export const NEXT_NIGHT_GRACE_MINUTES = 60;
+
+/** Wall-clock `YYYY-MM-DDTHH:MM:SS`; a bare date means the start of that day. */
+const wallClock = (value: string) =>
+  value.length <= 10 ? `${value}T00:00:00` : value.slice(0, 19).padEnd(19, ":00");
+
+/**
+ * The member's soonest scheduled night that hasn't finished. A night drops off
+ * `NEXT_NIGHT_GRACE_MINUTES` after it starts, so a reading from earlier this
+ * evening isn't still shown as coming up.
+ *
+ * `nowIso` is the family's local wall-clock time (see `dateTimeInTimezone`); a bare
+ * date compares whole days.
+ */
 export function nextSessionForMember(params: {
   sessions: ReadingSession[];
   assignments: SessionAssignment[];
   memberId: string;
   nowIso?: string;
 }): ReadingSession | null {
-  const now = params.nowIso ?? new Date().toISOString();
-  const nowDay = now.slice(0, 10);
+  const now = wallClock(params.nowIso ?? new Date().toISOString());
+  const graceMs = NEXT_NIGHT_GRACE_MINUTES * 60_000;
+  const cutoff = new Date(Date.parse(`${now}Z`) - graceMs).toISOString().slice(0, 19);
+  const startOfToday = `${now.slice(0, 10)}T00:00:00`;
+  const earliest = params.nowIso && params.nowIso.length <= 10 ? startOfToday : cutoff;
 
   const assignedSessionIds = new Set(
     params.assignments
@@ -120,7 +138,7 @@ export function nextSessionForMember(params: {
       (s) =>
         assignedSessionIds.has(s.id) &&
         s.status === "scheduled" &&
-        sessionDateKey(s.scheduledFor) >= nowDay,
+        wallClock(s.scheduledFor) >= earliest,
     )
     .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
 
