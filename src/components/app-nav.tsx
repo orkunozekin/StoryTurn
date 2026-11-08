@@ -115,7 +115,7 @@ export function AppNav({
               type="submit"
               variant="outline"
               size="sm"
-              title={`Signed in as ${displayName}`}
+              title={`Signed in as ${shortName}`}
             >
               Sign out
             </Button>

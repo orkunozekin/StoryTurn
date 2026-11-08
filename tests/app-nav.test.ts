@@ -107,8 +107,6 @@ it("shows only the first name in the menu and names the account on Sign out", ()
   render(createElement(AppNav, { displayName: "Alex Morgan Smith" }));
   expect(screen.queryByText("Alex Morgan Smith")).toBeNull();
   expect(screen.getAllByText("Alex").length).toBeGreaterThan(0);
-  // The desktop name pill was display-only; the full name now sits on Sign out.
-  expect(
-    document.querySelector('[title="Signed in as Alex Morgan Smith"]'),
-  ).not.toBeNull();
+  // Last names stay hidden, even in the Sign out tooltip.
+  expect(document.querySelector('[title="Signed in as Alex"]')).not.toBeNull();
 });

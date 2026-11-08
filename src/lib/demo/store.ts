@@ -1,5 +1,6 @@
 import type { ProfileTheme, Theme } from "@/lib/theme";
 import { computeBookHistory } from "@/lib/domain/book-history";
+import { familyDisplayName, familyDisplayNames } from "@/lib/first-name";
 import { paginateLibrary } from "@/lib/domain/library-page";
 import {
   filterSessionsForList,
@@ -907,10 +908,8 @@ export function getSessionDetail(sessionId: string, selectedLibraryOnly = false)
   const assignments = state().assignments.filter((a) => a.sessionId === sessionId);
   const books = state().sessionBooks.filter((b) => b.sessionId === sessionId);
   const corrections = state().corrections.filter((c) => c.sessionId === sessionId);
-  const memberNames = Object.fromEntries(
-    state()
-      .members.filter((m) => m.familyId === member.familyId)
-      .map((m) => [m.id, m.displayName]),
+  const memberNames = familyDisplayNames(
+    state().members.filter((m) => m.familyId === member.familyId),
   );
   const library = state().books.filter(
     (b) =>
@@ -1454,7 +1453,12 @@ export async function decideReaderRequest(
         sessionId: session.id,
         correctedByMemberId: owner.id,
         reason: approvalCorrectionReason(
-          requester?.displayName ?? "Reader",
+          requester
+            ? familyDisplayName(
+                requester,
+                state().members.filter((m) => m.familyId === requester.familyId),
+              )
+            : "Reader",
           request.note,
         ),
         before,

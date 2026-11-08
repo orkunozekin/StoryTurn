@@ -1,3 +1,4 @@
+import { familyDisplayNames } from "@/lib/first-name";
 import { effectiveStatus, isUpcomingNight } from "@/lib/domain/sessions";
 import type {
   Book,
@@ -47,7 +48,7 @@ export const computeBookHistory = ({
   members,
   today,
 }: Input): BookHistory => {
-  const nameOf = new Map(members.map((m) => [m.id, m.displayName]));
+  const nameOf = new Map(Object.entries(familyDisplayNames(members)));
   const titleOf = new Map(books.map((b) => [b.id, b.title]));
   const sessionIds = new Set(
     sessionBooks.filter((sb) => sb.bookId === bookId).map((sb) => sb.sessionId),

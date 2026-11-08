@@ -256,7 +256,7 @@ export default async function SessionPage({
                   value={reader.id}
                   defaultChecked={currentIds.has(reader.id)}
                 >
-                  {reader.displayName}
+                  {detail.memberNames[reader.id] ?? reader.displayName}
                 </ChoiceChip>
               ))}
             </div>

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getCurrentMember, getCurrentUser, getFamilyAdmin } from "@/lib/data";
+import { familyDisplayName, familyDisplayNames } from "@/lib/first-name";
 import { ageFromBirthday, formatBirthdayLabel } from "@/lib/domain/kids";
 import { invitePath } from "@/lib/domain/invites";
 import { appUrl } from "@/lib/config";
@@ -37,6 +38,7 @@ export default async function FamilyPage({
   if (!member) redirect("/onboarding");
   const admin = await getFamilyAdmin();
   if (!admin) redirect("/onboarding");
+  const readerNames = familyDisplayNames(admin.readers);
   const isOwner = member.role === "owner";
 
   return (
@@ -71,7 +73,9 @@ export default async function FamilyPage({
                   className="flex min-w-0 flex-col gap-4 rounded-xl bg-secondary/50 p-4"
                 >
                   <div className="min-w-0">
-                    <p className="font-medium">{reader.displayName}</p>
+                    <p className="font-medium">
+                      {readerNames[reader.id] ?? reader.displayName}
+                    </p>
                     <p className="break-all text-sm text-muted-foreground">
                       {reader.email}
                     </p>
@@ -88,7 +92,7 @@ export default async function FamilyPage({
                         <span className="font-medium">Name</span>
                         <Input
                           name="name"
-                          aria-label={`Name for ${reader.displayName}`}
+                          aria-label={`Name for ${readerNames[reader.id] ?? reader.displayName}`}
                           defaultValue={reader.displayName}
                           required
                           className="text-base sm:text-sm"
@@ -107,7 +111,7 @@ export default async function FamilyPage({
                           <span className="font-medium">Access</span>
                           <FormSelect
                             name="role"
-                            aria-label={`Access for ${reader.displayName}`}
+                            aria-label={`Access for ${readerNames[reader.id] ?? reader.displayName}`}
                             defaultValue={reader.role}
                             options={[
                               { value: "owner", label: "Parent (can manage family)" },
@@ -269,7 +273,9 @@ export default async function FamilyPage({
         <section className="story-panel reveal mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-5 lg:hidden">
           <p className="text-sm text-muted-foreground">
             Signed in as{" "}
-            <span className="font-bold text-foreground">{member.displayName}</span>
+            <span className="font-bold text-foreground">
+              {familyDisplayName(member, admin.readers)}
+            </span>
           </p>
           <div className="flex items-center gap-3">
             <ThemeToggle />
