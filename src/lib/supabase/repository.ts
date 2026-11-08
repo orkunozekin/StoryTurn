@@ -1,6 +1,7 @@
 import { parseTheme, type ProfileTheme, type Theme } from "@/lib/theme";
 import { cache } from "react";
 import { computeBookHistory } from "@/lib/domain/book-history";
+import { familyDisplayNames } from "@/lib/first-name";
 import { librarySearchTerm, type LibraryPage } from "@/lib/domain/library-page";
 import {
   sessionDayStart,
@@ -235,6 +236,13 @@ export async function saveThemePreference(theme: Theme): Promise<void> {
 export async function getCurrentMember(): Promise<FamilyMember | null> {
   const ctx = await loadContext();
   return ctx.member;
+}
+
+/** Everyone in the current member's family. */
+export async function listFamilyMembers(): Promise<FamilyMember[]> {
+  const ctx = await loadContext();
+  if (!ctx.member) return [];
+  return familyReaders(ctx.supabase, ctx.member.familyId);
 }
 
 async function familyReaders(
@@ -685,9 +693,7 @@ export async function getSessionDetail(sessionId: string, selectedLibraryOnly = 
     assignments,
     books,
     corrections,
-    memberNames: Object.fromEntries(
-      readers.map((reader) => [reader.id, reader.displayName]),
-    ),
+    memberNames: familyDisplayNames(readers),
     library,
     readers,
   };

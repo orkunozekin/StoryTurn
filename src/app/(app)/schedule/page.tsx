@@ -57,6 +57,7 @@ import Link from "next/link";
 import { SessionStatusBadge } from "@/components/session-status";
 import { buttonVariants } from "@/components/ui/button";
 import "./schedule.css";
+import { familyDisplayNames } from "@/lib/first-name";
 
 const FILTER_LABELS: Record<SessionListFilter, string> = {
   upcoming: "Coming up",
@@ -110,7 +111,7 @@ export default async function SchedulePage({
   const pagination = await getFamilySessionPage(requestedPage, filter, today);
   const assignments = pagination.assignments;
   const sessions = pagination.items;
-  const names = Object.fromEntries(admin.readers.map((r) => [r.id, r.displayName]));
+  const names = familyDisplayNames(admin.readers);
   const readerIds = admin.readers.map((reader) => reader.id);
   const rotationNames = effectivePool(
     admin.schedule?.readerRotationMemberIds ?? [],
@@ -191,7 +192,7 @@ export default async function SchedulePage({
               today={today}
               readers={admin.readers.map((reader) => ({
                 id: reader.id,
-                displayName: reader.displayName,
+                displayName: names[reader.id] ?? reader.displayName,
                 hint: `(${childRelationLabel(reader.relationToChildren)})`,
               }))}
               defaults={{
@@ -274,7 +275,7 @@ export default async function SchedulePage({
                 >
                   {admin.readers.map((reader) => (
                     <option key={reader.id} value={reader.id}>
-                      {reader.displayName} (
+                      {names[reader.id] ?? reader.displayName} (
                       {childRelationLabel(reader.relationToChildren)})
                     </option>
                   ))}

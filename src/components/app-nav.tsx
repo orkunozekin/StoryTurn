@@ -18,7 +18,6 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
 import { logoutAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { firstName } from "@/lib/first-name";
 
 const links: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/", label: "Tonight", icon: Moon },
@@ -49,7 +48,6 @@ export function AppNav({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const shortName = firstName(displayName);
   const pathname = usePathname() ?? "";
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -156,7 +154,7 @@ export function AppNav({
           >
             <span className="mb-1 flex items-center gap-2 border-b border-border px-3 py-2 text-xs text-muted-foreground">
               <UserRound className="size-4 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 break-words">{shortName}</span>
+              <span className="min-w-0 break-words">{displayName}</span>
             </span>
             {links.map((link) => (
               <Link

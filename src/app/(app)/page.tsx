@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { firstName } from "@/lib/first-name";
+import { familyDisplayNames, firstName } from "@/lib/first-name";
 import { Badge } from "@/components/ui/badge";
 import { DetailItem, DetailList } from "@/components/ui/detail";
 import { buttonVariants } from "@/components/ui/button";
@@ -19,7 +19,7 @@ export default async function HomePage() {
   if (!home.user) redirect("/login");
   if (!home.member) redirect("/onboarding");
 
-  const memberNames = Object.fromEntries(home.readers.map((r) => [r.id, r.displayName]));
+  const memberNames = familyDisplayNames(home.readers);
 
   const next = home.nextSession;
   const assignments = home.assignments;

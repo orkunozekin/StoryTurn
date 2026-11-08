@@ -1,6 +1,7 @@
 import type { MyRequestView, PendingRequestView } from "@/components/reader-requests";
 import { formatRelativeSessionWhen } from "@/lib/domain/dates";
 import { childRelationLabel } from "@/lib/domain/relations";
+import { familyDisplayNames } from "@/lib/first-name";
 import type {
   FamilyMember,
   ReadingSession,
@@ -19,6 +20,7 @@ export function pendingRequestViews(params: {
 }): PendingRequestView[] {
   const sessions = new Map(params.sessions.map((s) => [s.id, s]));
   const readers = new Map(params.readers.map((r) => [r.id, r]));
+  const names = familyDisplayNames(params.readers);
   return params.requests
     .filter((r) => r.status === "pending" && sessions.has(r.sessionId))
     .sort((a, b) => {
@@ -32,7 +34,7 @@ export function pendingRequestViews(params: {
       return {
         id: request.id,
         sessionId: request.sessionId,
-        requesterName: requester?.displayName ?? "A reader",
+        requesterName: names[request.memberId] ?? "A reader",
         requesterRelation: requester
           ? childRelationLabel(requester.relationToChildren)
           : "Reader",
@@ -43,7 +45,7 @@ export function pendingRequestViews(params: {
         }),
         currentReader: params.assignments
           .filter((a) => a.sessionId === request.sessionId && a.isCurrent)
-          .map((a) => readers.get(a.memberId)?.displayName ?? "Reader")
+          .map((a) => names[a.memberId] ?? "Reader")
           .join(", "),
       };
     });

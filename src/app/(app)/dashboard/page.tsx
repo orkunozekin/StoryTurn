@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentMember, getCurrentUser, getDashboard } from "@/lib/data";
+import { familyDisplayNames } from "@/lib/first-name";
 import Link from "next/link";
 import { DashboardFilters } from "@/components/dashboard-filters";
 
@@ -49,6 +50,7 @@ export default async function DashboardPage({
 
   const dash = await getDashboard(filter);
   if (!dash) redirect("/onboarding");
+  const readerNames = familyDisplayNames(dash.readers);
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
@@ -69,7 +71,7 @@ export default async function DashboardPage({
               { key: member.id, label: "Me" },
               ...dash.readers
                 .filter((r) => r.id !== member.id)
-                .map((r) => ({ key: r.id, label: r.displayName })),
+                .map((r) => ({ key: r.id, label: readerNames[r.id] ?? r.displayName })),
               { key: "family", label: "Whole family" },
             ]}
           />

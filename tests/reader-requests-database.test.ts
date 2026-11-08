@@ -171,10 +171,11 @@ describe("decide_session_reader_request", () => {
     const before = await sequence();
     await as(owner);
     const result = (
-      await db.query<{ session_id: string; changed: boolean; removed_member_ids: string[] }>(
-        "select * from decide_session_reader_request($1,true)",
-        [nanaRequest],
-      )
+      await db.query<{
+        session_id: string;
+        changed: boolean;
+        removed_member_ids: string[];
+      }>("select * from decide_session_reader_request($1,true)", [nanaRequest])
     ).rows[0];
     expect(result).toEqual({
       session_id: night,
@@ -209,6 +210,27 @@ describe("decide_session_reader_request", () => {
     await expect(
       db.query("select * from decide_session_reader_request($1,false)", [auntRequest]),
     ).rejects.toThrow(/already closed/);
+  });
+
+  it("names readers by first name unless another family member shares it", async () => {
+    const nameOf = async (memberId: string) =>
+      (
+        await db.query<{ name: string }>("select family_display_name($1) as name", [
+          memberId,
+        ])
+      ).rows[0].name;
+    expect(await nameOf(members.aunt)).toBe("Aunt");
+    await db.query("update family_members set display_name = 'aunt Mae' where id = $1", [
+      members.nana,
+    ]);
+    try {
+      expect(await nameOf(members.aunt)).toBe("Aunt Bea");
+      expect(await nameOf(members.nana)).toBe("aunt Mae");
+    } finally {
+      await db.query("update family_members set display_name = 'Nana' where id = $1", [
+        members.nana,
+      ]);
+    }
   });
 
   it("reactivates a single row when the requester was assigned to the night more than once", async () => {

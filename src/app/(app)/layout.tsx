@@ -1,6 +1,7 @@
 import { SiteNav } from "@/components/site-nav";
 import { ThemeSync } from "@/components/theme-sync";
-import { getCurrentMember, getThemePreference } from "@/lib/data";
+import { getCurrentMember, getThemePreference, listFamilyMembers } from "@/lib/data";
+import { familyDisplayName } from "@/lib/first-name";
 
 /**
  * Shared shell for the signed-in tabs. The nav lives here, not in each page, so it
@@ -8,15 +9,16 @@ import { getCurrentMember, getThemePreference } from "@/lib/data";
  * their auth redirects; without a member there is nothing to show in the nav.
  */
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const [member, savedTheme] = await Promise.all([
+  const [member, savedTheme, family] = await Promise.all([
     getCurrentMember(),
     getThemePreference(),
+    listFamilyMembers(),
   ]);
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
       {member && <ThemeSync saved={savedTheme} />}
-      {member && <SiteNav displayName={member.displayName} />}
+      {member && <SiteNav displayName={familyDisplayName(member, family)} />}
       {children}
     </div>
   );
